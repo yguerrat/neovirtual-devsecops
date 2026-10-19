@@ -1,0 +1,42 @@
+// Pipeline SIN DevSecOps: compila y despliega. Nada más.
+// No hay pruebas, ni análisis de código, ni revisión de dependencias,
+// ni escaneo de la imagen, ni evidencia para auditoría.
+pipeline {
+    agent any
+
+    environment {
+        IMAGE_NAME     = 'taskmanager-vulnerable'
+        CONTAINER_NAME = 'taskmanager-vulnerable'
+        APP_PORT       = '5001'
+        APP_DIR        = 'apps/taskmanager-sin-devsecops'
+    }
+
+    stages {
+        stage('Build') {
+            steps {
+                dir(env.APP_DIR) {
+                    sh 'docker build -t ${IMAGE_NAME}:${BUILD_NUMBER} -t ${IMAGE_NAME}:latest .'
+                }
+            }
+        }
+
+        stage('Test') {
+            steps {
+                echo 'No hay pruebas automatizadas.'
+            }
+        }
+
+        stage('Deploy') {
+            steps {
+                sh '''
+                    docker rm -f ${CONTAINER_NAME} || true
+                    docker run -d --name ${CONTAINER_NAME} -p ${APP_PORT}:5000 ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+    }
+
+    post {
+        success { echo "Desplegado (sin ninguna verificación de seguridad): http://localhost:${APP_PORT}" }
+    }
+}

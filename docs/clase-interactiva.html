@@ -1,0 +1,1222 @@
+<!doctype html>
+<html lang="es">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Laboratorio DevSecOps NeoVirtual</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Archivo:wdth,wght@62..125,500..900&family=IBM+Plex+Mono:wght@400;500&family=IBM+Plex+Sans:wght@400;500;600&display=swap">
+<style>
+/* Concepto: hoja de inspección de calidad. Un riel de compuertas a la izquierda,
+   contenido en bloques de protocolo y resultados sellados como APROBADO / RECHAZADO. */
+:root {
+  --paper: #ECEFF3;
+  --panel: #F8F9FB;
+  --ink: #0C1424;
+  --ink-2: #4A5568;
+  --line: #C9D0DA;
+  --signal: #2B3AE8;
+  --signal-ink: #FFFFFF;
+  --pass: #0B7F57;
+  --fail: #CC2F2A;
+  --warn: #A86B0A;
+  --code-bg: #0C1424;
+  --code-ink: #DCE3F1;
+  --code-dim: #7E8BA3;
+  --mark: #FFD9D6;
+  --mark-ink: #7A1511;
+  --font-display: "Archivo", "Arial Narrow", "Helvetica Neue", Arial, sans-serif;
+  --font-body: "IBM Plex Sans", "Segoe UI", system-ui, sans-serif;
+  --font-mono: "IBM Plex Mono", ui-monospace, "Cascadia Mono", Consolas, monospace;
+  --rail-w: 15.5rem;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --paper: #0A0F1A; --panel: #111827; --ink: #E8ECF4; --ink-2: #98A4BA; --line: #26304A;
+    --signal: #8D99FF; --signal-ink: #0A0F1A; --pass: #3FCB98; --fail: #FF7069; --warn: #E9B24E;
+    --code-bg: #060A12; --code-ink: #DCE3F1; --code-dim: #6F7C95; --mark: #5A1F1D; --mark-ink: #FFD9D6;
+    color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --paper: #0A0F1A; --panel: #111827; --ink: #E8ECF4; --ink-2: #98A4BA; --line: #26304A;
+  --signal: #8D99FF; --signal-ink: #0A0F1A; --pass: #3FCB98; --fail: #FF7069; --warn: #E9B24E;
+  --code-bg: #060A12; --code-ink: #DCE3F1; --code-dim: #6F7C95; --mark: #5A1F1D; --mark-ink: #FFD9D6;
+  color-scheme: dark;
+}
+
+*, *::before, *::after { box-sizing: border-box; }
+html { font-size: 16px; scroll-behavior: smooth; scroll-padding-top: 1.5rem; }
+html.proj { font-size: 20px; }
+body {
+  margin: 0; background: var(--paper); color: var(--ink);
+  font-family: var(--font-body); line-height: 1.55; font-size: 1rem;
+  -webkit-font-smoothing: antialiased;
+}
+h1, h2, h3 { font-family: var(--font-display); font-stretch: 118%; text-wrap: balance; margin: 0; line-height: 1.05; letter-spacing: -0.01em; }
+p { margin: 0; }
+code, pre, .mono { font-family: var(--font-mono); }
+a { color: var(--signal); }
+button { font: inherit; color: inherit; cursor: pointer; }
+:focus-visible { outline: 3px solid var(--signal); outline-offset: 2px; border-radius: 3px; }
+.sr { position: absolute; width: 1px; height: 1px; overflow: hidden; clip: rect(0 0 0 0); white-space: nowrap; }
+
+/* ---------- Estructura ---------- */
+.shell { display: grid; grid-template-columns: var(--rail-w) minmax(0, 1fr); min-height: 100vh; }
+html.proj .shell { grid-template-columns: 0 minmax(0, 1fr); }
+html.proj .rail { display: none; }
+
+.rail {
+  position: sticky; top: 0; height: 100vh; align-self: start;
+  display: flex; flex-direction: column; gap: 1.5rem; justify-content: space-between;
+  padding: 1.75rem 1.25rem 1.5rem 1.5rem; border-right: 1px solid var(--line); background: var(--paper);
+}
+.brand { font-family: var(--font-display); font-stretch: 125%; font-weight: 800; font-size: 0.95rem; letter-spacing: 0.02em; line-height: 1.1; }
+.brand small { display: block; font-family: var(--font-mono); font-stretch: 100%; font-weight: 400; font-size: 0.7rem; color: var(--ink-2); letter-spacing: 0.06em; text-transform: uppercase; margin-top: 0.4rem; }
+.gates { list-style: none; margin: 0; padding: 0; position: relative; display: grid; gap: 0.15rem; }
+.gates::before { content: ""; position: absolute; left: 0.62rem; top: 0.9rem; bottom: 0.9rem; width: 2px; background: var(--line); }
+.gates a {
+  position: relative; display: grid; grid-template-columns: 1.3rem 1fr; gap: 0.75rem; align-items: center;
+  padding: 0.45rem 0.4rem 0.45rem 0; text-decoration: none; color: var(--ink-2); font-size: 0.9rem; font-weight: 500;
+}
+.gates .node { width: 1.3rem; height: 1.3rem; border-radius: 50%; background: var(--paper); border: 2px solid var(--line); display: grid; place-items: center; z-index: 1; font-family: var(--font-mono); font-size: 0.62rem; color: var(--ink-2); }
+.gates a:hover { color: var(--ink); }
+.gates a[aria-current="true"] { color: var(--ink); font-weight: 600; }
+.gates a[aria-current="true"] .node { border-color: var(--signal); background: var(--signal); color: var(--signal-ink); }
+.gates a.done .node { border-color: var(--pass); background: var(--pass); color: var(--paper); }
+.rail-foot { display: grid; gap: 0.75rem; }
+.meter { font-family: var(--font-mono); font-size: 0.72rem; color: var(--ink-2); display: grid; gap: 0.35rem; }
+.meter-bar { height: 4px; background: var(--line); border-radius: 2px; overflow: hidden; }
+.meter-bar i { display: block; height: 100%; width: 0; background: var(--pass); transition: width 0.3s; }
+.tools { display: flex; gap: 0.5rem; flex-wrap: wrap; }
+.btn-ghost { background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 0.35rem 0.6rem; font-size: 0.78rem; font-family: var(--font-mono); color: var(--ink); }
+.btn-ghost:hover { border-color: var(--ink); }
+.btn-ghost[aria-pressed="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+
+main { padding: 2.5rem max(1.5rem, env(safe-area-inset-right, 0px)) 6rem max(2.5rem, env(safe-area-inset-left, 0px)); max-width: 62rem; width: 100%; }
+html.proj main { max-width: 74rem; margin-inline: auto; }
+section { padding-block: 3.25rem; border-top: 1px solid var(--line); }
+section:first-of-type { border-top: 0; padding-top: 0; }
+.eyebrow { font-family: var(--font-mono); font-size: 0.74rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--ink-2); margin-bottom: 0.9rem; display: flex; gap: 0.6rem; align-items: center; }
+.eyebrow b { color: var(--signal); font-weight: 500; }
+h2 { font-size: clamp(1.7rem, 3.6vw, 2.6rem); font-weight: 800; margin-bottom: 0.9rem; }
+h3 { font-size: 1.1rem; font-weight: 700; font-stretch: 112%; }
+.lede { color: var(--ink-2); font-size: 1.05rem; max-width: 46rem; margin-bottom: 1.75rem; }
+
+/* ---------- Hero ---------- */
+.hero h1 { font-size: clamp(2.3rem, 6.4vw, 4.6rem); font-weight: 900; font-stretch: 125%; line-height: 0.98; max-width: 14ch; }
+.hero .lede { margin-top: 1.25rem; font-size: 1.15rem; }
+.strips { display: grid; gap: 0.9rem; margin: 2rem 0 1.5rem; max-width: 46rem; }
+.strip { display: grid; grid-template-columns: 7.5rem 1fr; gap: 1rem; align-items: center; }
+.strip span.lab { font-family: var(--font-mono); font-size: 0.75rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.strip .cells { display: flex; gap: 4px; }
+.strip .cells i { height: 1.6rem; flex: 1; max-width: 3.2rem; border-radius: 2px; background: var(--line); }
+.strip.con .cells i { background: var(--pass); }
+.strip.sin .cells i { background: var(--warn); }
+.strip.sin .cells i.off, .strip.con .cells i.off { background: transparent; border: 1px dashed var(--line); }
+.cmp { border-collapse: collapse; width: 100%; max-width: 46rem; font-size: 0.92rem; }
+.cmp th, .cmp td { text-align: left; padding: 0.55rem 0.9rem 0.55rem 0; border-bottom: 1px solid var(--line); vertical-align: top; }
+.cmp thead th { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); font-weight: 400; }
+.cmp td.num { font-family: var(--font-mono); font-variant-numeric: tabular-nums; white-space: nowrap; }
+.bad { color: var(--fail); font-weight: 600; }
+.good { color: var(--pass); font-weight: 600; }
+.scroll-x { overflow-x: auto; }
+
+/* ---------- Bloques ---------- */
+.block { background: var(--panel); border: 1px solid var(--line); border-radius: 6px; }
+.tabs { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-bottom: 1rem; }
+.tab { background: transparent; border: 1px solid var(--line); border-radius: 4px; padding: 0.45rem 0.8rem; font-size: 0.88rem; font-weight: 500; }
+.tab:hover { border-color: var(--ink); }
+.tab[aria-selected="true"] { background: var(--ink); color: var(--paper); border-color: var(--ink); }
+.cols2 { display: grid; grid-template-columns: repeat(auto-fit, minmax(16rem, 1fr)); gap: 1px; background: var(--line); border-radius: 6px; overflow: hidden; border: 1px solid var(--line); }
+.cols2 > div { background: var(--panel); padding: 1.1rem 1.25rem; min-width: 0; }
+.tag { display: inline-block; font-family: var(--font-mono); font-size: 0.68rem; text-transform: uppercase; letter-spacing: 0.08em; padding: 0.15rem 0.45rem; border-radius: 3px; margin-bottom: 0.6rem; }
+.tag.sin { background: var(--warn); color: var(--paper); }
+.tag.con { background: var(--pass); color: var(--paper); }
+.tag.ev { background: var(--ink); color: var(--paper); }
+.chips { display: flex; flex-wrap: wrap; gap: 0.4rem; margin-top: 0.6rem; }
+.chip { font-family: var(--font-mono); font-size: 0.72rem; border: 1px solid var(--line); border-radius: 3px; padding: 0.15rem 0.45rem; color: var(--ink-2); overflow-wrap: anywhere; }
+
+/* ---------- Checklist y código ---------- */
+.steps { list-style: none; margin: 0; padding: 0; display: grid; gap: 1.1rem; }
+.step { display: grid; grid-template-columns: 1.6rem minmax(0, 1fr); gap: 0.85rem; }
+.step input[type="checkbox"] { appearance: none; width: 1.35rem; height: 1.35rem; margin: 0.15rem 0 0; border: 2px solid var(--ink-2); border-radius: 3px; background: transparent; cursor: pointer; display: grid; place-items: center; }
+.step input[type="checkbox"]:checked { background: var(--pass); border-color: var(--pass); }
+.step input[type="checkbox"]:checked::after { content: ""; width: 0.35rem; height: 0.7rem; border: solid var(--paper); border-width: 0 2px 2px 0; transform: rotate(45deg) translate(-1px, -1px); }
+.step label { font-weight: 600; cursor: pointer; display: block; }
+.step.checked label { color: var(--ink-2); text-decoration: line-through; text-decoration-thickness: 1px; }
+.step p.d { color: var(--ink-2); font-size: 0.93rem; margin-top: 0.2rem; }
+.code { position: relative; background: var(--code-bg); color: var(--code-ink); border-radius: 5px; margin-top: 0.6rem; }
+.code pre { margin: 0; padding: 0.85rem 4.2rem 0.85rem 1rem; overflow-x: auto; font-size: 0.82rem; line-height: 1.6; }
+.code button { position: absolute; top: 0.5rem; right: 0.5rem; background: transparent; border: 1px solid #3A4663; color: var(--code-ink); border-radius: 3px; font-family: var(--font-mono); font-size: 0.68rem; padding: 0.2rem 0.5rem; }
+.code button:hover { border-color: var(--code-ink); }
+.code .c { color: var(--code-dim); }
+.callout { border-left: 3px solid var(--signal); padding: 0.2rem 0 0.2rem 1rem; color: var(--ink-2); max-width: 46rem; margin-top: 1.5rem; font-size: 0.95rem; }
+.callout b { color: var(--ink); }
+
+/* ---------- Simulador de ataque ---------- */
+.sim { display: grid; grid-template-columns: minmax(0, 15rem) minmax(0, 1fr); gap: 1.25rem; align-items: start; }
+.target { display: grid; grid-template-columns: 1fr 1fr; border: 1px solid var(--ink); border-radius: 5px; overflow: hidden; margin-bottom: 0.9rem; }
+.target button { border: 0; background: transparent; padding: 0.6rem 0.5rem; font-weight: 600; font-size: 0.85rem; }
+.target button[aria-pressed="true"].sin { background: var(--warn); color: var(--paper); }
+.target button[aria-pressed="true"].con { background: var(--pass); color: var(--paper); }
+.attacks { display: grid; gap: 0.4rem; }
+.attack { text-align: left; background: var(--panel); border: 1px solid var(--line); border-radius: 4px; padding: 0.6rem 0.75rem; }
+.attack small { display: block; color: var(--ink-2); font-size: 0.78rem; margin-top: 0.1rem; }
+.attack[aria-pressed="true"] { border-color: var(--signal); box-shadow: inset 3px 0 0 var(--signal); }
+.attack:hover { border-color: var(--ink); }
+.console { padding: 1.25rem; display: grid; gap: 1.1rem; min-width: 0; }
+.fields { display: grid; grid-template-columns: repeat(auto-fit, minmax(9rem, 1fr)); gap: 0.6rem; }
+.fields label { display: grid; gap: 0.2rem; font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.06em; }
+.fields input { font-family: var(--font-mono); font-size: 0.88rem; padding: 0.5rem 0.6rem; border: 1px solid var(--line); border-radius: 3px; background: var(--paper); color: var(--ink); min-width: 0; }
+.row { display: flex; flex-wrap: wrap; gap: 0.5rem; align-items: center; }
+.btn { background: var(--signal); color: var(--signal-ink); border: 0; border-radius: 4px; padding: 0.55rem 1rem; font-weight: 600; font-size: 0.9rem; }
+.btn:hover { filter: brightness(1.1); }
+.btn:disabled { opacity: 0.5; cursor: default; }
+.out { display: grid; gap: 0.9rem; }
+.out h4 { margin: 0 0 0.3rem; font-family: var(--font-mono); font-size: 0.68rem; font-weight: 500; letter-spacing: 0.09em; text-transform: uppercase; color: var(--ink-2); }
+.out .code pre { padding-right: 1rem; white-space: pre-wrap; overflow-wrap: anywhere; }
+.out mark { background: var(--mark); color: var(--mark-ink); padding: 0 0.15rem; border-radius: 2px; }
+.out .code { margin-top: 0; }
+.tasks { list-style: none; margin: 0; padding: 0; display: grid; gap: 0.3rem; font-size: 0.88rem; }
+.tasks li { display: flex; justify-content: space-between; gap: 0.75rem; padding: 0.4rem 0.6rem; background: var(--paper); border: 1px solid var(--line); border-radius: 3px; }
+.tasks li span.o { font-family: var(--font-mono); font-size: 0.7rem; color: var(--ink-2); white-space: nowrap; }
+.tasks li.gone { text-decoration: line-through; opacity: 0.45; }
+.render { background: var(--paper); border: 1px dashed var(--line); border-radius: 3px; padding: 0.6rem 0.75rem; font-size: 0.9rem; overflow-wrap: anywhere; }
+
+.stamp {
+  display: inline-block; font-family: var(--font-display); font-stretch: 125%; font-weight: 900; font-size: 1.15rem; letter-spacing: 0.06em; text-transform: uppercase;
+  border: 3px solid currentColor; border-radius: 4px; padding: 0.2rem 0.7rem; transform: rotate(-2.5deg); width: fit-content;
+  background-image: repeating-linear-gradient(135deg, transparent 0 6px, color-mix(in srgb, currentColor 7%, transparent) 6px 7px);
+}
+.stamp.fail { color: var(--fail); }
+.stamp.pass { color: var(--pass); }
+.stamp.warn { color: var(--warn); }
+.stamp.neutral { color: var(--ink-2); }
+.stamp.in { animation: stampIn 0.28s cubic-bezier(.2,1.4,.4,1); }
+@keyframes stampIn { from { transform: rotate(-2.5deg) scale(1.6); opacity: 0; } to { transform: rotate(-2.5deg) scale(1); opacity: 1; } }
+.verdict { display: grid; gap: 0.5rem; }
+.verdict p { color: var(--ink-2); font-size: 0.93rem; max-width: 42rem; }
+.otp { font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-2); border: 1px dashed var(--line); border-radius: 4px; padding: 0.4rem 0.6rem; }
+.otp b { font-size: 1.05rem; letter-spacing: 0.15em; color: var(--ink); font-weight: 500; }
+
+/* ---------- Simulador de pipeline ---------- */
+.pipe-ctl { display: grid; grid-template-columns: repeat(auto-fit, minmax(15rem, 1fr)); gap: 1rem; margin-bottom: 1.25rem; }
+.pipe-ctl fieldset { border: 1px solid var(--line); border-radius: 6px; padding: 0.8rem 1rem; margin: 0; min-width: 0; background: var(--panel); }
+.pipe-ctl legend { font-family: var(--font-mono); font-size: 0.7rem; text-transform: uppercase; letter-spacing: 0.08em; color: var(--ink-2); padding: 0 0.4rem; }
+.pipe-ctl label { display: flex; gap: 0.55rem; align-items: baseline; padding: 0.25rem 0; font-size: 0.92rem; cursor: pointer; }
+.pipe-ctl input { accent-color: var(--signal); margin: 0; }
+.lane { display: grid; grid-template-columns: repeat(auto-fit, minmax(7.4rem, 1fr)); gap: 0.4rem; margin: 1rem 0; }
+.stage { border: 1px solid var(--line); border-radius: 4px; padding: 0.55rem 0.65rem; background: var(--panel); min-height: 4.2rem; display: grid; align-content: space-between; gap: 0.3rem; position: relative; }
+.stage b { font-size: 0.82rem; font-weight: 600; line-height: 1.2; }
+.stage small { font-family: var(--font-mono); font-size: 0.66rem; color: var(--ink-2); text-transform: uppercase; letter-spacing: 0.05em; }
+.stage .st { position: absolute; top: 0.45rem; right: 0.5rem; width: 0.6rem; height: 0.6rem; border-radius: 50%; background: var(--line); }
+.stage.run { border-color: var(--signal); }
+.stage.run .st { background: var(--signal); animation: blink 0.6s infinite alternate; }
+.stage.ok { border-color: var(--pass); } .stage.ok .st { background: var(--pass); }
+.stage.bad { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 9%, var(--panel)); } .stage.bad .st { background: var(--fail); }
+.stage.unstable { border-color: var(--warn); } .stage.unstable .st { background: var(--warn); }
+.stage.skip { opacity: 0.4; border-style: dashed; }
+@keyframes blink { to { opacity: 0.25; } }
+.result { display: grid; grid-template-columns: minmax(0, 1fr); gap: 1rem; }
+.arts { display: flex; flex-wrap: wrap; gap: 0.4rem; }
+
+/* ---------- Quiz ---------- */
+.q { padding: 1.25rem; display: grid; gap: 0.9rem; }
+.q h3 { font-size: 1.2rem; font-stretch: 105%; }
+.opts { display: grid; gap: 0.5rem; }
+.opt { text-align: left; background: var(--paper); border: 1px solid var(--line); border-radius: 4px; padding: 0.65rem 0.85rem; }
+.opt:hover:not(:disabled) { border-color: var(--ink); }
+.opt.right { border-color: var(--pass); background: color-mix(in srgb, var(--pass) 12%, var(--paper)); }
+.opt.wrong { border-color: var(--fail); background: color-mix(in srgb, var(--fail) 10%, var(--paper)); }
+.opt:disabled { cursor: default; }
+.explain { color: var(--ink-2); font-size: 0.93rem; border-left: 3px solid var(--signal); padding-left: 0.9rem; }
+.qnav { display: flex; justify-content: space-between; align-items: center; gap: 1rem; flex-wrap: wrap; }
+.score { font-family: var(--font-mono); font-size: 0.8rem; color: var(--ink-2); }
+
+footer { padding-top: 2rem; border-top: 1px solid var(--line); color: var(--ink-2); font-size: 0.85rem; }
+
+/* ---------- Preguntas y etiquetas ---------- */
+.filter { font-family: var(--font-mono); font-size: 0.88rem; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); width: min(100%, 24rem); }
+details.faq { border-top: 1px solid var(--line); padding: 0.7rem 0; }
+details.faq:last-child { border-bottom: 1px solid var(--line); }
+details.faq summary { cursor: pointer; font-weight: 600; }
+details.faq p { color: var(--ink-2); margin-top: 0.5rem; font-size: 0.95rem; }
+.pill { font-family: var(--font-mono); font-size: 0.68rem; padding: 0.1rem 0.4rem; border-radius: 3px; border: 1px solid var(--line); white-space: nowrap; }
+.pill.y { border-color: var(--pass); color: var(--pass); }
+.pill.n { border-color: var(--warn); color: var(--warn); }
+
+/* ---------- Guía paso a paso ---------- */
+.needs { padding: 1.1rem 1.4rem; margin-bottom: 1rem; }
+.needs h3 { margin-bottom: 0.5rem; }
+.needs ul { margin: 0; padding-left: 1.2rem; display: grid; gap: 0.25rem; }
+.settings { padding: 1rem 1.4rem; margin-bottom: 1.5rem; display: grid; gap: 0.8rem; }
+.set-row { display: grid; grid-template-columns: minmax(8rem, 11rem) minmax(0, 1fr); gap: 0.5rem 1rem; align-items: center; }
+.set-lab { font-family: var(--font-mono); font-size: 0.72rem; text-transform: uppercase; letter-spacing: 0.07em; color: var(--ink-2); }
+.seg { display: inline-flex; flex-wrap: wrap; border: 1px solid var(--ink); border-radius: 4px; overflow: hidden; width: fit-content; max-width: 100%; }
+.seg button { border: 0; background: transparent; padding: 0.45rem 0.8rem; font-size: 0.85rem; font-weight: 500; }
+.seg button[aria-pressed="true"] { background: var(--ink); color: var(--paper); }
+.small { font-size: 0.85rem; color: var(--ink-2); max-width: 46rem; }
+.stepcard { border: 1px solid var(--line); border-radius: 6px; background: var(--panel); padding: 1.3rem 1.4rem 1.4rem; margin-bottom: 1.1rem; display: grid; gap: 0.95rem; min-width: 0; }
+.stepcard > * { min-width: 0; }
+.stepcard.checked { border-color: var(--pass); }
+.sc-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 0.4rem 0.9rem; }
+.sc-head h3 { font-size: 1.25rem; flex: 1 1 14rem; }
+.num { font-family: var(--font-mono); font-size: 0.74rem; text-transform: uppercase; letter-spacing: 0.1em; color: var(--signal); }
+.doneLab { display: inline-flex; align-items: center; gap: 0.45rem; font-family: var(--font-mono); font-size: 0.78rem; color: var(--ink-2); cursor: pointer; margin-left: auto; }
+.doneLab input { accent-color: var(--pass); width: 1.1rem; height: 1.1rem; margin: 0; cursor: pointer; }
+.stepcard.checked .doneLab { color: var(--pass); }
+.why { color: var(--ink-2); max-width: 48rem; }
+.why b { color: var(--ink); }
+.stepcard p { max-width: 48rem; }
+.sc-steps { margin: 0; padding-left: 1.4rem; display: grid; gap: 0.9rem; max-width: 52rem; }
+.sc-steps li { padding-left: 0.2rem; min-width: 0; }
+.sc-steps li::marker { font-family: var(--font-mono); color: var(--ink-2); }
+.sc-steps .code { margin-top: 0.5rem; }
+.sc-steps .small { margin-top: 0.4rem; }
+.note { border-left: 3px solid var(--pass); padding: 0.55rem 0.9rem; font-size: 0.93rem; background: color-mix(in srgb, var(--pass) 8%, transparent); border-radius: 0 4px 4px 0; max-width: 52rem; }
+.note.warn { border-left-color: var(--warn); background: color-mix(in srgb, var(--warn) 9%, transparent); }
+.note b:first-child { color: var(--ink); }
+.sub { margin: 2.2rem 0 0.9rem; font-size: 1.15rem; }
+.filter { font-family: var(--font-mono); font-size: 0.88rem; padding: 0.5rem 0.7rem; border: 1px solid var(--line); border-radius: 4px; background: var(--paper); color: var(--ink); width: min(100%, 28rem); }
+@media (max-width: 40rem) { .set-row { grid-template-columns: minmax(0, 1fr); } }
+/* ---------- Responsive ---------- */
+@media (max-width: 62rem) {
+  .shell { grid-template-columns: minmax(0, 1fr); }
+  .rail { position: sticky; z-index: 5; height: auto; flex-direction: row; align-items: center; gap: 1rem; padding: 0.6rem max(1rem, env(safe-area-inset-right, 0px)) 0.6rem max(1rem, env(safe-area-inset-left, 0px)); border-right: 0; border-bottom: 1px solid var(--line); overflow-x: auto; }
+  .brand, .meter { display: none; }
+  .gates { display: flex; gap: 0.25rem; }
+  .gates::before { display: none; }
+  .gates a { grid-template-columns: 1.3rem auto; white-space: nowrap; padding: 0.35rem 0.6rem 0.35rem 0.35rem; border: 1px solid var(--line); border-radius: 4px; }
+  .rail-foot { display: flex; }
+  main { padding-inline: max(1rem, env(safe-area-inset-left, 0px)) max(1rem, env(safe-area-inset-right, 0px)); }
+  .sim { grid-template-columns: minmax(0, 1fr); }
+  .attacks { grid-template-columns: repeat(auto-fit, minmax(11rem, 1fr)); }
+  .strip { grid-template-columns: 1fr; gap: 0.35rem; }
+}
+@media (prefers-reduced-motion: reduce) {
+  html { scroll-behavior: auto; }
+  *, *::before, *::after { animation: none !important; transition: none !important; }
+}
+</style>
+</head>
+<body>
+<div class="shell">
+  <aside class="rail" aria-label="Avance de la clase">
+    <div>
+      <div class="brand">NEOVIRTUAL<small>Laboratorio DevSecOps</small></div>
+    </div>
+    <nav>
+      <ol class="gates" id="gates"></ol>
+    </nav>
+    <div class="rail-foot">
+      <div class="meter" aria-live="polite">
+        <span id="meterTxt">Pasos 0 / 0</span>
+        <div class="meter-bar"><i id="meterBar"></i></div>
+      </div>
+      <div class="tools">
+        <button class="btn-ghost" id="themeBtn" type="button">Tema</button>
+        <button class="btn-ghost" id="projBtn" type="button" aria-pressed="false">Proyección</button>
+      </div>
+    </div>
+  </aside>
+
+  <main id="main">
+    <!-- ================= 0 · Portada ================= -->
+    <section class="hero" id="inicio" data-label="Inicio">
+      <div class="eyebrow"><b>NeoVirtual</b> · auditoría interna de desarrollo</div>
+      <h1>Dos pipelines, una misma app</h1>
+      <p class="lede">Despliega el gestor de tareas sin controles y luego con ellos. Ataca las dos versiones, rompe el pipeline a propósito y revisa qué evidencia queda para el auditor. Sigue las secciones en orden: tu avance se guarda en este navegador.</p>
+
+      <div class="strips" aria-label="Compuertas de seguridad por pipeline">
+        <div class="strip sin"><span class="lab">Sin DevSecOps</span><div class="cells" id="stripSin"></div></div>
+        <div class="strip con"><span class="lab">Con DevSecOps</span><div class="cells" id="stripCon"></div></div>
+      </div>
+
+      <div class="scroll-x">
+        <table class="cmp">
+          <thead><tr><th>Medido sobre las dos apps</th><th>Sin</th><th>Con</th></tr></thead>
+          <tbody>
+            <tr><td>Bandit (SAST)</td><td class="num bad">2 hallazgos</td><td class="num good">0</td></tr>
+            <tr><td>pip-audit (dependencias)</td><td class="num bad">CVE en Flask, Werkzeug, Jinja2</td><td class="num good">0</td></tr>
+            <tr><td>Trivy, HIGH + CRITICAL con parche</td><td class="num bad">2008 en el SO + 6 en Python</td><td class="num good">0</td></tr>
+            <tr><td>Pruebas automáticas</td><td class="num bad">0</td><td class="num good">29 · ≈97 % cobertura</td></tr>
+            <tr><td>Contenedor</td><td class="num bad">root · debug activo</td><td class="num good">uid 10001 · solo lectura</td></tr>
+          </tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ================= 1 · Escenario ================= -->
+    <section id="escenario" data-label="Escenario">
+      <div class="eyebrow"><b>Compuerta 1</b> · el caso</div>
+      <h2>Cuatro hallazgos de la auditoría</h2>
+      <p class="lede">Elige un hallazgo para ver qué pasa hoy, qué control lo cubre y qué evidencia deja cada build.</p>
+      <div class="tabs" role="tablist" id="findTabs" aria-label="Hallazgos"></div>
+      <div class="cols2" id="findPanel" role="tabpanel" aria-live="polite"></div>
+    </section>
+
+    <!-- ================= 2 · Laboratorio ================= -->
+    <section id="lab" data-label="Laboratorio">
+      <div class="eyebrow"><b>Compuerta 2</b> · prepara tu entorno</div>
+      <h2>Monta el laboratorio paso a paso</h2>
+      <p class="lede">Sigue los pasos en orden. Marca cada uno como hecho cuando veas lo que dice «Qué deberías ver»; tu avance se guarda en este navegador.</p>
+      <div class="block needs">
+        <h3>Antes de empezar necesitas</h3>
+        <ul>
+          <li><b>Docker Desktop</b> instalado y encendido.</li>
+          <li><b>Git</b> instalado.</li>
+          <li>Una <b>cuenta de GitHub</b> (gratis).</li>
+          <li>El <b>zip del proyecto</b> que te entregó el docente.</li>
+          <li>Unos 10 GB libres y conexión a internet (se descargan imágenes grandes).</li>
+        </ul>
+      </div>
+      <div class="block settings" id="settings"></div>
+      <div id="stepsLab"></div>
+    </section>
+
+
+    <!-- ================= 3 · Ataques ================= -->
+    <section id="ataques" data-label="Ataques">
+      <div class="eyebrow"><b>Compuerta 3</b> · pruebas de penetración</div>
+      <h2>Ataca las dos versiones</h2>
+      <p class="lede">Elige el objetivo y un ataque. Cada resultado reproduce lo que hacen las apps reales del repositorio, con la consulta SQL, la respuesta HTTP y el log.</p>
+      <div class="sim">
+        <div>
+          <div class="target" role="group" aria-label="Objetivo">
+            <button class="sin" id="tgtSin" type="button" aria-pressed="true">Sin · :5001</button>
+            <button class="con" id="tgtCon" type="button" aria-pressed="false">Con · :5002</button>
+          </div>
+          <div class="attacks" id="attackList"></div>
+        </div>
+        <div class="block console" id="console" aria-live="polite"></div>
+      </div>
+      <p class="callout"><b>Simulación didáctica.</b> Funciona sin red ni contenedores: úsala para entender cada ataque antes de repetirlo contra las apps reales, justo debajo.</p>
+      <h3 class="sub">Hazlo con las apps reales</h3>
+      <div id="stepAttack"></div>
+    </section>
+
+    <!-- ================= 4 · Pipeline ================= -->
+    <section id="pipeline" data-label="Pipeline">
+      <div class="eyebrow"><b>Compuerta 4</b> · integración continua</div>
+      <h2>Rompe el pipeline a propósito</h2>
+      <p class="lede">Introduce un cambio inseguro y ejecuta el mismo cambio en los dos pipelines. Uno lo despliega; el otro lo detiene antes de producción.</p>
+      <div id="stepBreak"></div>
+      <h3 class="sub">Practica con el simulador</h3>
+      <div class="pipe-ctl">
+        <fieldset id="pipeSel"><legend>Pipeline</legend></fieldset>
+        <fieldset id="scenSel"><legend>Cambio introducido</legend></fieldset>
+      </div>
+      <div class="row"><button class="btn" id="runBtn" type="button">Ejecutar pipeline</button><span class="score" id="runNote"></span></div>
+      <div class="lane" id="lane" aria-live="polite"></div>
+      <div class="result" id="result"></div>
+    </section>
+
+    <!-- ================= 6 · Evidencia ================= -->
+    <section id="evidencia" data-label="Evidencia">
+      <div class="eyebrow"><b>Compuerta 5</b> · auditoría</div>
+      <h2>¿Qué le entregas al auditor?</h2>
+      <p class="lede">Cada build del pipeline seguro archiva sus reportes. Filtra por etapa para ver qué prueba cada archivo.</p>
+      <div class="tabs" role="tablist" id="evTabs" aria-label="Filtro de evidencia"></div>
+      <div class="scroll-x block">
+        <table class="cmp" style="max-width:none;margin:0" id="evTable">
+          <thead><tr><th style="padding-left:1rem">Archivo</th><th>Etapa</th><th>Responde</th></tr></thead>
+          <tbody></tbody>
+        </table>
+      </div>
+      <p class="callout"><b>Lo que el auditor pregunta primero:</b> qué commit corre en producción. La respuesta está en <code>build-info.json</code> y en las etiquetas OCI de la imagen, no en la memoria de alguien.</p>
+    </section>
+
+    <!-- ================= 7 · Cierre ================= -->
+    <section id="cierre" data-label="Cierre">
+      <div class="eyebrow"><b>Compuerta 6</b> · verificación</div>
+      <h2>Comprueba lo aprendido</h2>
+      <p class="lede">Seis preguntas. Cada respuesta explica el porqué.</p>
+      <div class="block q" id="quiz"></div>
+      <h3 class="sub">Cuando termines</h3>
+      <div id="stepClean"></div>
+      <footer>Laboratorio educativo: la app «sin DevSecOps» es vulnerable a propósito; no la expongas fuera de un entorno aislado.</footer>
+    </section>
+
+    <!-- ================= 7 · Ayuda ================= -->
+    <section id="ayuda" data-label="Ayuda">
+      <div class="eyebrow"><b>Compuerta 7</b> · si algo falla</div>
+      <h2>Problemas frecuentes</h2>
+      <p class="lede">Escribe una palabra del error (puerto, credenciales, MFA, Trivy…) para filtrar la lista.</p>
+      <input class="filter" id="probFilter" type="search" placeholder="Filtrar por palabra" aria-label="Filtrar problemas">
+      <div class="scroll-x block" style="margin-top:1rem">
+        <table class="cmp" style="max-width:none;margin:0">
+          <thead><tr><th style="padding-left:1rem">Síntoma</th><th>Qué hacer</th></tr></thead>
+          <tbody id="probBody"></tbody>
+        </table>
+      </div>
+      <p class="callout"><b>Un build falla y no sabes por qué.</b> Abre <b>Console Output</b> del build en Jenkins. La última etapa en rojo indica qué compuerta lo detuvo, y el mensaje justo encima explica el motivo. Copia ese mensaje cuando pidas ayuda.</p>
+    </section>
+  </main>
+</div>
+
+<script>
+(function () {
+  "use strict";
+
+  /* ---------- utilidades ---------- */
+  var $ = function (s, r) { return (r || document).querySelector(s); };
+  var $$ = function (s, r) { return Array.prototype.slice.call((r || document).querySelectorAll(s)); };
+  var esc = function (s) { return String(s).replace(/[&<>"']/g, function (c) { return { "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]; }); };
+  var store = {
+    get: function (k, d) { try { var v = localStorage.getItem(k); return v === null ? d : JSON.parse(v); } catch (e) { return d; } },
+    set: function (k, v) { try { localStorage.setItem(k, JSON.stringify(v)); } catch (e) { /* sin almacenamiento */ } }
+  };
+  var reduceMotion = window.matchMedia && window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+  var wait = function (ms) { return new Promise(function (r) { setTimeout(r, reduceMotion ? 0 : ms); }); };
+
+  /* ---------- tema y proyección ---------- */
+  var root = document.documentElement;
+  var savedTheme = store.get("nv-theme", null);
+  if (savedTheme) root.setAttribute("data-theme", savedTheme);
+  $("#themeBtn").addEventListener("click", function () {
+    var dark = root.getAttribute("data-theme") === "dark" ||
+      (!root.getAttribute("data-theme") && window.matchMedia("(prefers-color-scheme: dark)").matches);
+    var next = dark ? "light" : "dark";
+    root.setAttribute("data-theme", next); store.set("nv-theme", next);
+  });
+  var projBtn = $("#projBtn");
+  function setProj(on) { root.classList.toggle("proj", on); projBtn.setAttribute("aria-pressed", String(on)); }
+  projBtn.addEventListener("click", function () { setProj(!root.classList.contains("proj")); });
+
+  /* ---------- riel de compuertas ---------- */
+  var sections = $$("main > section");
+  var gates = $("#gates");
+  sections.forEach(function (s, i) {
+    var li = document.createElement("li");
+    li.innerHTML = '<a href="#' + s.id + '"><span class="node">' + (i === 0 ? "◆" : i) + '</span><span>' + esc(s.dataset.label) + "</span></a>";
+    gates.appendChild(li);
+  });
+  var links = $$("a", gates);
+  function markCurrent(id) { links.forEach(function (a) { a.setAttribute("aria-current", String(a.getAttribute("href") === "#" + id)); }); }
+  if ("IntersectionObserver" in window) {
+    var io = new IntersectionObserver(function (es) {
+      es.forEach(function (e) { if (e.isIntersecting) markCurrent(e.target.id); });
+    }, { rootMargin: "-30% 0px -60% 0px" });
+    sections.forEach(function (s) { io.observe(s); });
+  }
+  markCurrent("inicio");
+  function currentIndex() {
+    var cur = links.findIndex(function (a) { return a.getAttribute("aria-current") === "true"; });
+    return cur < 0 ? 0 : cur;
+  }
+  document.addEventListener("keydown", function (e) {
+    var t = e.target.tagName;
+    if (t === "INPUT" || t === "TEXTAREA" || t === "SELECT" || e.metaKey || e.ctrlKey || e.altKey) return;
+    var lastNav = sections.length - 1;
+    if (e.key === "ArrowRight" || e.key === "PageDown") { var n = Math.min(lastNav, currentIndex() + 1); sections[n].scrollIntoView(); e.preventDefault(); }
+    if (e.key === "ArrowLeft" || e.key === "PageUp") { var p = Math.max(0, currentIndex() - 1); sections[p].scrollIntoView(); e.preventDefault(); }
+  });
+
+  /* ---------- tira de compuertas de la portada ---------- */
+  function cells(el, on, total) {
+    for (var i = 0; i < total; i++) { var c = document.createElement("i"); if (i >= on) c.className = "off"; el.appendChild(c); }
+  }
+  cells($("#stripSin"), 3, 10); cells($("#stripCon"), 10, 10);
+
+  /* ---------- 1 · hallazgos ---------- */
+  var findings = [
+    { id: "pruebas", tab: "Sin pruebas de seguridad",
+      sin: "La etapa Test del Jenkinsfile solo imprime un mensaje. Cualquier cambio llega a producción sin que nada lo revise.",
+      con: "Gitleaks busca secretos, Bandit analiza el código, pip-audit revisa dependencias, 29 pruebas cubren los ataques y Trivy escanea la imagen. ZAP prueba la app en ejecución. Las compuertas rompen el build.",
+      ev: ["gitleaks.json", "bandit.json", "junit.xml", "coverage.xml", "trivy.json", "zap-report.html"] },
+    { id: "deps", tab: "Dependencias",
+      sin: "Flask 2.0.1, Werkzeug 2.0.1 y Jinja2 3.0.1 con vulnerabilidades conocidas, sobre una imagen python:3.9. Nadie se entera ni actualiza.",
+      con: "Versiones fijadas con ==, pip-audit rompe el build ante un CVE, Trivy revisa la imagen y Dependabot propone las actualizaciones cada semana.",
+      ev: ["pip-audit.json", "sbom.cdx.json", "dependabot.yml"] },
+    { id: "traza", tab: "Trazabilidad",
+      sin: "No hay forma de saber qué commit, qué pruebas ni qué versión de dependencias corresponden al contenedor que está corriendo.",
+      con: "Cada build escribe build-info.json (build, commit, rama, imagen, fecha UTC), etiqueta la imagen con el commit y archiva los reportes con huella digital.",
+      ev: ["build-info.json", "etiquetas OCI", "reports/* archivados"] },
+    { id: "monit", tab: "Monitorización",
+      sin: "Solo se imprime la consulta SQL. Un ataque de fuerza bruta o una inyección no dejan ningún evento de seguridad.",
+      con: "Eventos JSON (login_failure, account_locked, csrf_rejected, admin_access_denied), endpoint /health, HEALTHCHECK de Docker y un smoke test después de desplegar.",
+      ev: ["docker logs (JSON)", "/health", "stage Smoke test"] }
+  ];
+  var findTabs = $("#findTabs"), findPanel = $("#findPanel");
+  function showFinding(id) {
+    var f = findings.filter(function (x) { return x.id === id; })[0];
+    $$(".tab", findTabs).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.id === id)); });
+    findPanel.innerHTML =
+      '<div><span class="tag sin">Hoy, sin DevSecOps</span><p>' + esc(f.sin) + "</p></div>" +
+      '<div><span class="tag con">Con DevSecOps</span><p>' + esc(f.con) + "</p></div>" +
+      '<div><span class="tag ev">Evidencia</span><div class="chips">' + f.ev.map(function (e) { return '<span class="chip">' + esc(e) + "</span>"; }).join("") + "</div></div>";
+  }
+  findings.forEach(function (f) {
+    var b = document.createElement("button");
+    b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab"); b.dataset.id = f.id; b.textContent = f.tab;
+    b.addEventListener("click", function () { showFinding(f.id); });
+    findTabs.appendChild(b);
+  });
+  showFinding("pruebas");
+
+  /* ---------- guía paso a paso: preferencias, copia y progreso ---------- */
+  var REPO_PLACEHOLDER = "https://github.com/TU-USUARIO/neovirtual-devsecops.git";
+  var isWin = !/Mac|Linux|iPhone|iPad|Android/i.test(navigator.userAgent || "");
+  var prefs = store.get("nv-prefs", { os: isWin ? "win" : "mac", repo: "" });
+  var checked = store.get("nv-steps", {});
+
+  var sub = function (s, forHtml) {
+    var r = prefs.repo.trim() || REPO_PLACEHOLDER;
+    return String(s).split("{{REPO}}").join(forHtml ? esc(r) : r);
+  };
+  var pick = function (x) { return x !== null && typeof x === "object" && ("win" in x || "mac" in x) ? (prefs.os === "win" ? x.win : (x.mac !== undefined ? x.mac : x.win)) : x; };
+  var T = function (win, mac) { return { win: win, mac: mac }; };
+
+  var codeBox = function (c) {
+    var text = sub(pick(c), false);
+    return '<div class="code"><pre><code>' + esc(text) + '</code></pre><button type="button" data-copy>Copiar</button></div>';
+  };
+  var tbl = function (head, rows) {
+    return '<div class="scroll-x"><table class="cmp"><thead><tr>' + head.map(function (h) { return "<th>" + h + "</th>"; }).join("") +
+      "</tr></thead><tbody>" + rows.map(function (r) { return "<tr>" + r.map(function (c) { return "<td>" + c + "</td>"; }).join("") + "</tr>"; }).join("") + "</tbody></table></div>";
+  };
+  var html = function (x) { return sub(pick(x), true); };
+
+  function blockHtml(b) {
+    if (b.p) return "<p>" + html(b.p) + "</p>";
+    if (b.code) return codeBox(b.code);
+    if (b.table) return tbl(b.table[0], b.table[1]);
+    if (b.see) return '<div class="note see"><b>Qué deberías ver.</b> ' + html(b.see) + "</div>";
+    if (b.warn) return '<div class="note warn"><b>' + (b.title || "Si falla.") + "</b> " + html(b.warn) + "</div>";
+    if (b.steps) {
+      return '<ol class="sc-steps">' + b.steps.map(function (s) {
+        return "<li><div>" + html(s.h) + "</div>" + (s.code ? codeBox(s.code) : "") + (s.note ? '<p class="small">' + html(s.note) + "</p>" : "") + "</li>";
+      }).join("") + "</ol>";
+    }
+    return "";
+  }
+
+  var cardHosts = [];
+  function renderCards(host, list) {
+    cardHosts.push({ host: host, list: list });
+    drawCards(host, list);
+  }
+  function drawCards(host, list) {
+    host.innerHTML = list.map(function (s) {
+      return '<article class="stepcard' + (checked[s.n] ? " checked" : "") + '" id="paso-' + s.n + '"><div class="sc-head"><span class="num">Paso ' + s.n + "</span><h3>" + esc(s.title) +
+        '</h3><label class="doneLab"><input type="checkbox" class="stepchk" data-n="' + s.n + '"' + (checked[s.n] ? " checked" : "") + "> Hecho</label></div>" +
+        '<p class="why"><b>Para qué sirve.</b> ' + html(s.why) + "</p>" + s.blocks.map(blockHtml).join("") + "</article>";
+    }).join("");
+    $$(".stepchk", host).forEach(function (cb) {
+      cb.addEventListener("change", function () {
+        checked[cb.dataset.n] = cb.checked; store.set("nv-steps", checked);
+        cb.closest(".stepcard").classList.toggle("checked", cb.checked);
+        updateMeter();
+      });
+    });
+  }
+  function redrawAll() { cardHosts.forEach(function (h) { drawCards(h.host, h.list); }); updateMeter(); }
+
+  document.addEventListener("click", function (e) {
+    var b = e.target.closest("[data-copy]");
+    if (!b) return;
+    var codeEl = $("code", b.parentNode);
+    var done = function () { b.textContent = "Copiado"; setTimeout(function () { b.textContent = "Copiar"; }, 1400); };
+    var fallback = function () {
+      var r = document.createRange(); r.selectNodeContents(codeEl);
+      var sel = window.getSelection(); sel.removeAllRanges(); sel.addRange(r); b.textContent = "Selecciona y copia";
+    };
+    if (navigator.clipboard && navigator.clipboard.writeText) navigator.clipboard.writeText(codeEl.textContent).then(done, fallback); else fallback();
+  });
+
+  function updateMeter() {
+    var all = $$(".stepchk");
+    var n = all.filter(function (c) { return c.checked; }).length;
+    $("#meterTxt").textContent = "Pasos " + n + " / " + all.length;
+    $("#meterBar").style.width = (all.length ? (100 * n / all.length) : 0) + "%";
+    links.forEach(function (a) {
+      var sec = document.getElementById(a.getAttribute("href").slice(1));
+      var mine = $$(".stepchk", sec);
+      a.classList.toggle("done", mine.length > 0 && mine.every(function (c) { return c.checked; }));
+    });
+  }
+
+  /* ---------- barra de ajustes: sistema y repositorio ---------- */
+  function drawSettings() {
+    $("#settings").innerHTML =
+      '<div class="set-row"><span class="set-lab">Tu sistema</span><div class="seg" role="group" aria-label="Sistema operativo">' +
+      '<button type="button" id="osWin" aria-pressed="' + (prefs.os === "win") + '">Windows · PowerShell</button>' +
+      '<button type="button" id="osMac" aria-pressed="' + (prefs.os === "mac") + '">Mac o Linux · Terminal</button></div></div>' +
+      '<div class="set-row"><label class="set-lab" for="repoInput">Tu repositorio de GitHub</label>' +
+      '<input class="filter" id="repoInput" type="url" placeholder="' + REPO_PLACEHOLDER + '" value="' + esc(prefs.repo) + '" autocomplete="off" spellcheck="false"></div>' +
+      '<p class="small">Pega aquí la URL del repositorio que crees en el paso 2 y todos los comandos se completan solos. Se guarda solo en este navegador.</p>';
+    $("#osWin").addEventListener("click", function () { prefs.os = "win"; store.set("nv-prefs", prefs); drawSettings(); redrawAll(); });
+    $("#osMac").addEventListener("click", function () { prefs.os = "mac"; store.set("nv-prefs", prefs); drawSettings(); redrawAll(); });
+    $("#repoInput").addEventListener("input", function (e) { prefs.repo = e.target.value; store.set("nv-prefs", prefs); redrawAll(); });
+  }
+  drawSettings();
+
+  /* ---------- contenido de los pasos ---------- */
+  var labSteps = [
+    { n: 1, title: "Comprueba Docker y Git",
+      why: "Todo el laboratorio corre en contenedores de Docker y Git sube el código a GitHub. Si esto falla, nada de lo demás funcionará.",
+      blocks: [
+        { steps: [
+          { h: "Abre <b>Docker Desktop</b> y espera a que diga «Engine running» (el icono de la ballena queda fijo, sin animación)." },
+          { h: T("Abre <b>PowerShell</b> (tecla Windows, escribe PowerShell y pulsa Enter).", "Abre la aplicación <b>Terminal</b>.") },
+          { h: "Ejecuta estos dos comandos:", code: "docker version\ngit --version" }] },
+        { see: "<code>docker version</code> muestra dos bloques, <b>Client</b> y <b>Server</b>. Si solo aparece Client y un error en Server, Docker Desktop aún está arrancando: espera un minuto y repite. <code>git --version</code> muestra algo como <code>git version 2.x</code>." },
+        { warn: "Si el sistema no reconoce <code>git</code>, instálalo desde <a href=\"https://git-scm.com/downloads\" target=\"_blank\" rel=\"noopener\">git-scm.com/downloads</a> y abre una terminal nueva." }] },
+
+    { n: 2, title: "Sube el proyecto a tu repositorio de GitHub",
+      why: "Jenkins corre dentro de un contenedor y no puede ver las carpetas de tu equipo. Necesita clonar el código desde GitHub, así que el proyecto tiene que estar en tu propio repositorio antes de crear los jobs.",
+      blocks: [
+        { steps: [
+          { h: "Entra a <a href=\"https://github.com/new\" target=\"_blank\" rel=\"noopener\">github.com/new</a> y crea un repositorio llamado <code>neovirtual-devsecops</code>. Déjalo <b>vacío</b>: sin README, sin .gitignore y sin licencia. Puede ser público (más simple) o privado." },
+          { h: "Copia la URL que termina en <code>.git</code> y pégala en el campo <b>Tu repositorio de GitHub</b> de arriba. Así los comandos siguientes ya llevan tu URL." },
+          { h: "Descomprime el zip que te entregó el docente (por ejemplo en <code>" + "C:\\labs</code> o en <code>~/labs</code>) y entra a la carpeta:", code: T("cd C:\\labs\\neovirtual-devsecops\ndir", "cd ~/labs/neovirtual-devsecops\nls"),
+            note: "Deberías ver las carpetas <code>apps</code>, <code>docs</code> e <code>infra</code>. Si ves otra carpeta <code>neovirtual-devsecops</code> dentro, entra también a esa." },
+          { h: "Crea el repositorio local y guarda el primer commit (una foto del contenido):", code: "git init -b main\ngit add -A\ngit commit -m \"Proyecto inicial\"",
+            note: "Si Git dice «Please tell me who you are», ejecuta una sola vez <code>git config --global user.name \"Tu Nombre\"</code> y <code>git config --global user.email \"tu-correo@ejemplo.com\"</code>, y repite el commit." },
+          { h: "Conecta la carpeta con tu repositorio y sube el contenido:", code: "git remote add origin {{REPO}}\ngit push -u origin main" }] },
+        { see: "La primera vez se abre el navegador para iniciar sesión en GitHub. Al terminar, la consola muestra <code>Branch 'main' set up to track 'origin/main'</code> y al recargar tu repositorio en GitHub ves las carpetas <code>apps</code>, <code>docs</code> e <code>infra</code>." },
+        { warn: "Si el push dice <code>rejected</code>, tu repositorio no estaba vacío. Si no necesitas lo que tiene, usa <code>git push -u origin main --force</code>. Si lo necesitas, ejecuta primero <code>git pull origin main --allow-unrelated-histories --no-edit</code> y luego el push normal." }] },
+
+    { n: 3, title: "Levanta Jenkins",
+      why: "Jenkins es el servidor que ejecuta los pipelines. El proyecto trae uno preparado en la carpeta <code>infra</code>, con el comando <code>docker</code> instalado y conectado al Docker de tu equipo. Es necesario porque el pipeline construye imágenes y lanza las herramientas de seguridad como contenedores.",
+      blocks: [
+        { steps: [
+          { h: "Si ya tienes otro contenedor llamado <code>jenkins</code>, deténlo: el nuevo usa el mismo nombre y el mismo puerto 8080. Si el primer comando no lista ninguno, salta este punto.", code: "docker ps --format \"{{.Names}}\"\ndocker stop jenkins\ndocker rm jenkins" },
+          { h: "Desde la carpeta del proyecto, construye y arranca Jenkins:", code: "docker compose -f infra/docker-compose.jenkins.yml up -d --build", note: "La primera vez tarda entre 2 y 5 minutos. Termina con <code>Container jenkins Started</code>." },
+          { h: "Comprueba que Jenkins puede usar Docker:", code: "docker exec jenkins docker --version", note: "Debe mostrar <code>Docker version 26.x…</code>. Si dice «executable file not found», repite el punto anterior." },
+          { h: "Obtén la clave inicial de administrador y cópiala:", code: "docker exec jenkins cat /var/jenkins_home/secrets/initialAdminPassword" },
+          { h: "Abre <a href=\"http://localhost:8080\" target=\"_blank\" rel=\"noopener\">http://localhost:8080</a>. Si dice «Jenkins is getting ready», espera 30 segundos y recarga." },
+          { h: "Pega la clave en <b>Administrator password</b> y pulsa <b>Continue</b>. Elige <b>Install suggested plugins</b> y espera (2 a 4 minutos)." },
+          { h: "En <b>Create First Admin User</b> crea tu usuario y contraseña (anótalos). Pulsa <b>Save and Continue</b>, luego <b>Save and Finish</b> y <b>Start using Jenkins</b>." }] },
+        { see: "El panel principal de Jenkins, vacío." }] },
+
+    { n: 4, title: "Crea las tres credenciales",
+      why: "La aplicación segura no guarda ninguna contraseña en el código. El pipeline las toma de Jenkins y las pasa al contenedor al desplegar. Los nombres (IDs) deben ser exactos, porque el Jenkinsfile los busca por nombre.",
+      blocks: [
+        { steps: [
+          { h: "Genera una clave secreta larga para firmar las sesiones. Copia el resultado: será el valor de la primera credencial.", code: T("$b = New-Object byte[] 32\n[Security.Cryptography.RandomNumberGenerator]::Create().GetBytes($b)\n($b | ForEach-Object { $_.ToString('x2') }) -join ''", "openssl rand -hex 32") },
+          { h: "En Jenkins ve a <b>Manage Jenkins → Credentials</b>. En la columna <b>Domains</b> de la fila <b>System</b> haz clic en <b>(global)</b>." },
+          { h: "Pulsa <b>Add Credentials</b> y crea <b>tres</b> credenciales con <b>Kind: Secret text</b>, dejando Scope en Global y pulsando <b>Create</b> tras cada una:" }] },
+        { table: [["Secret", "ID (exacto)"], [
+          ["la clave generada en el punto 1", "<code>taskmanager-secret-key</code>"],
+          ["la contraseña que quieras para el usuario <code>admin</code> de la app", "<code>taskmanager-admin-pw</code>"],
+          ["la contraseña que quieras para el usuario <code>user</code> de la app", "<code>taskmanager-user-pw</code>"]]] },
+        { p: "Anota las dos contraseñas de la app: las usarás en el paso 9 para iniciar sesión." },
+        { see: "Tres filas en la lista de credenciales globales, con esos IDs." }] },
+
+    { n: 5, title: "Crea los dos jobs",
+      why: "Un job le dice a Jenkins de dónde sacar el código y qué archivo de pipeline ejecutar. Los dos jobs usan el mismo repositorio y cambian solo la ruta del Jenkinsfile.",
+      blocks: [
+        { table: [["Nombre del job", "Script Path"], [
+          ["<code>taskmanager-sin-devsecops</code>", "<code>apps/taskmanager-sin-devsecops/Jenkinsfile</code>"],
+          ["<code>taskmanager-con-devsecops</code>", "<code>apps/taskmanager-con-devsecops/Jenkinsfile</code>"]]] },
+        { p: "Repite estos pasos <b>dos veces</b>, una por cada fila:" },
+        { steps: [
+          { h: "En el panel principal pulsa <b>New Item</b>. Escribe el nombre, elige <b>Pipeline</b> y pulsa <b>OK</b>." },
+          { h: "Baja a la sección <b>Pipeline</b>. En <b>Definition</b> elige <b>Pipeline script from SCM</b> y en <b>SCM</b> elige <b>Git</b>." },
+          { h: "Rellena estos campos y pulsa <b>Save</b>:", code: "Repository URL:   {{REPO}}\nBranch Specifier: */main\nScript Path:      (el de la tabla)" }] },
+        { warn: "Si tu repositorio es privado, junto a <b>Credentials</b> pulsa <b>Add → Jenkins</b>, elige <b>Username with password</b>, escribe tu usuario de GitHub y como contraseña un token personal con permiso <code>repo</code> (GitHub → Settings → Developer settings → Personal access tokens). Luego selecciónalo en la lista.", title: "Repositorio privado." },
+        { see: "La página del job, con el botón <b>Build Now</b> a la izquierda." }] },
+
+    { n: 6, title: "Ejecuta el pipeline sin DevSecOps",
+      why: "Es tu punto de comparación: verás que despliega todo en verde sin revisar nada.",
+      blocks: [
+        { steps: [
+          { h: "Entra al job <code>taskmanager-sin-devsecops</code> y pulsa <b>Build Now</b>." },
+          { h: "Pulsa el número del build (#1) en <b>Builds</b> y luego <b>Console Output</b> para ver el avance." },
+          { h: "Cuando termine, abre <a href=\"http://localhost:5001/login\" target=\"_blank\" rel=\"noopener\">http://localhost:5001/login</a>." }] },
+        { see: "<code>Finished: SUCCESS</code> en 1 a 3 minutos, con tres etapas: Build, Test y Deploy. La etapa Test solo imprime «No hay pruebas automatizadas». La app muestra un formulario de usuario y contraseña." }] },
+
+    { n: 7, title: "Ejecuta el pipeline con DevSecOps",
+      why: "Es el pipeline completo: diez etapas que verifican secretos, código, dependencias, imagen y aplicación, y que detienen el despliegue si algo falla.",
+      blocks: [
+        { steps: [
+          { h: "Entra al job <code>taskmanager-con-devsecops</code>, pulsa <b>Build Now</b> y abre el <b>Console Output</b>." },
+          { h: "Espera. La primera vez tarda entre 8 y 20 minutos porque descarga las imágenes de Gitleaks, Trivy y ZAP (ZAP pesa más de 1 GB). Las siguientes ejecuciones tardan unos 5 minutos." },
+          { h: "Cuando termine, abre <a href=\"http://localhost:5002/login\" target=\"_blank\" rel=\"noopener\">http://localhost:5002/login</a>." }] },
+        { table: [["#", "Etapa", "Qué verifica"], [
+          ["1", "Trazabilidad", "Guarda commit, build y fecha"],
+          ["2", "Secretos (Gitleaks)", "Que no haya claves en el código"],
+          ["3", "SAST (Bandit)", "Que el código propio no tenga patrones inseguros"],
+          ["4", "SCA (pip-audit)", "Que ninguna dependencia tenga vulnerabilidades conocidas"],
+          ["5", "Pruebas de seguridad", "29 pruebas con cobertura mínima de 80 %"],
+          ["6", "Build imagen", "Construye la imagen etiquetada con el commit"],
+          ["7", "Imagen + SBOM (Trivy)", "Vulnerabilidades graves en la imagen"],
+          ["8", "Deploy (staging)", "Despliega con tus tres credenciales"],
+          ["9", "Smoke test", "Espera a que la app responda «healthy»"],
+          ["10", "DAST (OWASP ZAP)", "Prueba la app en ejecución"]]] },
+        { see: "El build termina como <b>SUCCESS</b> o <b>UNSTABLE</b> (amarillo). Las dos son correctas: la etapa DAST queda en amarillo a propósito, porque ZAP informa avisos pero no bloquea el despliegue. La app muestra un formulario con tres campos: usuario, contraseña y código MFA." }] },
+
+    { n: 8, title: "Revisa la evidencia del build seguro",
+      why: "Es lo que le entregarías a un auditor: demuestra qué se verificó, cuándo y sobre qué commit.",
+      blocks: [
+        { p: "Entra al build seguro y pulsa <b>Build Artifacts</b>. Abre la carpeta <code>apps/taskmanager-con-devsecops/reports/</code>." },
+        { table: [["Archivo", "Qué contiene"], [
+          ["<code>build-info.json</code>", "Build, commit, rama, imagen y fecha. Responde «¿qué código corre en producción?»"],
+          ["<code>gitleaks.json</code>", "Resultado de la búsqueda de secretos"],
+          ["<code>bandit.json</code>", "Resultado del análisis del código"],
+          ["<code>pip-audit.json</code>", "Resultado de la revisión de dependencias"],
+          ["<code>junit.xml</code>, <code>coverage.xml</code>", "Resultado de las 29 pruebas y la cobertura"],
+          ["<code>sbom.cdx.json</code>", "Inventario de todos los componentes de la imagen"],
+          ["<code>trivy.json</code>", "Vulnerabilidades encontradas en la imagen"],
+          ["<code>zap-report.html</code>", "Informe de OWASP ZAP; ábrelo en el navegador"]]] }] }
+  ];
+
+  var attackSteps = [
+    { n: 9, title: "Ataca las dos aplicaciones de verdad",
+      why: "Ver con tus propios ojos qué consigue un atacante en la versión sin controles y cómo la segura lo detiene. Hazlo solo contra estos contenedores de tu equipo. Prueba cada ataque primero en la versión vulnerable (puerto 5001) y luego en la segura (puerto 5002).",
+      blocks: [
+        { p: "<b>9.1 Inyección SQL.</b> En <a href=\"http://localhost:5001/login\" target=\"_blank\" rel=\"noopener\">:5001/login</a> escribe usuario <code>admin</code> y contraseña <code>' OR '1'='1</code> (con las comillas simples). En la vulnerable entras al panel sin conocer la contraseña. Repite en <a href=\"http://localhost:5002/login\" target=\"_blank\" rel=\"noopener\">:5002/login</a> con cualquier código de 6 dígitos: responde «Credenciales invalidas». Con un usuario como <code>admin' --</code> responde «Datos invalidos»." },
+        { p: "<b>9.2 Borrado por enlace e IDOR.</b> En :5001 entra como <code>admin</code> / <code>password</code> y agrega una tarea (será la id 1). Abre una <b>ventana privada</b> (Ctrl+Shift+N), entra como <code>user</code> / <code>password</code> y abre <code>http://localhost:5001/delete_task/1</code>. Recarga el panel del admin: la tarea desapareció. En la segura, ese enlace responde <b>405</b> y un formulario falso sin token responde <b>400</b>." },
+        { p: "<b>9.3 Consola de depuración.</b> <code>http://localhost:5001/console</code> abre la consola de Werkzeug (ejecuta código en el servidor). <code>http://localhost:5002/console</code> responde <b>404</b>." },
+        { p: "<b>9.4 Fuerza bruta.</b> En :5002/login envía <b>6 veces</b> el usuario <code>user</code> con una contraseña incorrecta. Del 1 al 5 responde «Credenciales invalidas»; desde el 6.º, «Cuenta bloqueada temporalmente» (429). En la vulnerable puedes intentar sin límite. Mira los registros que dejó el ataque:" },
+        { code: "docker logs taskmanager-secure" },
+        { p: "Busca <code>\"event\": \"login_failure\"</code> y <code>\"event\": \"account_locked\"</code>: es la monitorización, cada intento queda registrado en JSON." },
+        { p: "<b>9.5 Entrar de verdad a la app segura.</b> Necesitas un código MFA. Esta línea imprime uno válido para <code>user</code> (cámbialo por <code>admin</code> si quieres el otro). Vale unos 30 segundos. Úsalo con usuario <code>user</code> y la contraseña que pusiste en <code>taskmanager-user-pw</code>:" },
+        { code: "docker exec taskmanager-secure python -c \"import pyotp,sqlite3; c=sqlite3.connect('/data/database.db'); print(pyotp.TOTP(c.execute('select mfa_secret from users where username=?',('user',)).fetchone()[0]).now())\"" },
+        { warn: "Si la cuenta quedó bloqueada por el ataque anterior, espera 5 minutos, o reinicia los datos con <code>docker rm -f taskmanager-secure</code>, luego <code>docker volume rm taskmanager-data</code> y vuelve a ejecutar el job.", title: "Cuenta bloqueada." },
+        { p: "Alternativa más realista: lee el secreto con <code>docker logs taskmanager-secure</code> (líneas que empiezan con <code>[MFA]</code>) y cárgalo en Google Authenticator o Authy." }] }
+  ];
+
+  var breakSteps = [
+    { n: 10, title: "Rompe el pipeline a propósito",
+      why: "Demostrar que el pipeline seguro detiene un cambio inseguro antes de que llegue a producción.",
+      blocks: [
+        { steps: [
+          { h: "En la carpeta del proyecto, cambia Flask por una versión con vulnerabilidades conocidas:", code: T("(Get-Content apps/taskmanager-con-devsecops/requirements.txt) -replace '^Flask==.*','Flask==2.0.1' | Set-Content apps/taskmanager-con-devsecops/requirements.txt", "sed -i.bak 's/^Flask==.*/Flask==2.0.1/' apps/taskmanager-con-devsecops/requirements.txt && rm apps/taskmanager-con-devsecops/requirements.txt.bak") },
+          { h: "Comprueba el cambio y súbelo:", code: "git diff\ngit commit -am \"test: forzar fallo de SCA\"\ngit push" },
+          { h: "En Jenkins ejecuta <b>Build Now</b> en <code>taskmanager-con-devsecops</code>." }] },
+        { see: "El build termina en rojo en la etapa <b>SCA (pip-audit)</b> y las siguientes quedan sin ejecutar. En el Console Output aparece <code>Found 2 known vulnerabilities in 1 package</code> con <code>flask 2.0.1</code>. La app desplegada antes sigue intacta: el cambio nunca llegó a producción." },
+        { steps: [
+          { h: "Revierte el cambio y vuelve a ejecutar <b>Build Now</b>; debe volver a pasar:", code: "git revert HEAD --no-edit\ngit push" }] },
+        { p: "<b>Otros cambios para probar</b> (cada uno se detiene en una etapa distinta):" },
+        { table: [["Cambio", "Se detiene en"], [
+          ["Escribir <code>app.run(debug=True)</code> en <code>app.py</code>", "SAST"],
+          ["Agregar <code>GITHUB_TOKEN = \"ghp_R2d9Kx7LmQ4vT8bN3cW6yZ1aF5hJ0sPuE2XD\"</code> en <code>app.py</code> (valor inventado con formato real; evita claves de ejemplo famosas como las de la documentación de AWS, que Gitleaks ignora a propósito)", "Secretos"],
+          ["Cambiar las dos líneas <code>FROM python:3.12-slim</code> por <code>FROM python:3.9</code> en el Dockerfile de la app segura (esperado; no verificado de punta a punta)", "Trivy"]]] },
+        { p: "Practica primero con el simulador de abajo si quieres ver qué mensaje da cada etapa." }] }
+  ];
+
+  var cleanSteps = [
+    { n: 11, title: "Limpia al terminar",
+      why: "Deja tu equipo como estaba. Primero detienes todo sin borrar nada; después, si quieres, lo eliminas por completo.",
+      blocks: [
+        { steps: [
+          { h: "Detener sin borrar:", code: "docker stop jenkins taskmanager-secure taskmanager-vulnerable" },
+          { h: "Borrar contenedores y datos del laboratorio:", code: "docker rm -f jenkins taskmanager-secure taskmanager-vulnerable\ndocker volume rm infra_jenkins_home taskmanager-data trivy-cache" }] },
+        { see: "<code>docker ps -a</code> ya no lista los contenedores del laboratorio." }] }
+  ];
+
+  renderCards($("#stepsLab"), labSteps);
+  renderCards($("#stepAttack"), attackSteps);
+  renderCards($("#stepBreak"), breakSteps);
+  renderCards($("#stepClean"), cleanSteps);
+  updateMeter();
+
+  /* ---------- 3 · simulador de ataques ---------- */
+  var USERS = { admin: { id: 1, role: "admin" }, user: { id: 2, role: "user" } };
+  var SEC_PASS = "DemoClase#1";
+  function freshState() {
+    return {
+      tasks: [{ id: 1, owner: "user", text: "Preparar informe", gone: false }, { id: 2, owner: "user", text: "Revisar logs del servidor", gone: false }, { id: 3, owner: "admin", text: "Rotar claves de producción", gone: false }],
+      fails: 0, locked: false
+    };
+  }
+  var sim = { target: "sin", attack: "sqli", state: { sin: freshState(), con: freshState() }, last: {} };
+
+  function fakeOtp() { var n = Math.floor(Date.now() / 30000); return String((n * 7919 + 104729) % 900000 + 100000); }
+  function fakeOtpPrev() { var n = Math.floor(Date.now() / 30000) - 1; return String((n * 7919 + 104729) % 900000 + 100000); }
+  function ts() { return new Date().toISOString().replace(/\.\d+Z$/, "Z"); }
+  function evt(name, extra) { var o = { ts: ts(), event: name, ip: "172.19.0.1" }; for (var k in extra) o[k] = extra[k]; return JSON.stringify(o); }
+
+  var attacks = [
+    { id: "sqli", name: "Inyección SQL", sub: "Login sin conocer la contraseña" },
+    { id: "csrf", name: "CSRF", sub: "Enlace malicioso que borra una tarea" },
+    { id: "idor", name: "IDOR", sub: "Borrar la tarea de otro usuario" },
+    { id: "xss", name: "XSS", sub: "Script dentro de una tarea" },
+    { id: "brute", name: "Fuerza bruta", sub: "Siete contraseñas seguidas" },
+    { id: "debug", name: "Consola de depuración", sub: "GET /console" }
+  ];
+  var attackList = $("#attackList");
+  attacks.forEach(function (a) {
+    var b = document.createElement("button");
+    b.type = "button"; b.className = "attack"; b.dataset.id = a.id;
+    b.innerHTML = "<b>" + esc(a.name) + "</b><small>" + esc(a.sub) + "</small>";
+    b.addEventListener("click", function () { sim.attack = a.id; renderConsole(); });
+    attackList.appendChild(b);
+  });
+  function setTarget(t) {
+    sim.target = t;
+    $("#tgtSin").setAttribute("aria-pressed", String(t === "sin"));
+    $("#tgtCon").setAttribute("aria-pressed", String(t === "con"));
+    renderConsole();
+  }
+  $("#tgtSin").addEventListener("click", function () { setTarget("sin"); });
+  $("#tgtCon").addEventListener("click", function () { setTarget("con"); });
+
+  function code(title, body) { return "<div><h4>" + esc(title) + '</h4><div class="code"><pre><code>' + body + "</code></pre></div></div>"; }
+  function stampHtml(kind, text) { return '<span class="stamp ' + kind + ' in">' + esc(text) + "</span>"; }
+  function tasksHtml(st) {
+    return "<div><h4>Tareas en la base de datos</h4><ul class=\"tasks\">" + st.tasks.map(function (t) {
+      return '<li class="' + (t.gone ? "gone" : "") + '"><span>' + esc(t.text) + '</span><span class="o">id ' + t.id + " · " + esc(t.owner) + "</span></li>";
+    }).join("") + "</ul></div>";
+  }
+
+  function renderConsole() {
+    $$(".attack", attackList).forEach(function (b) { b.setAttribute("aria-pressed", String(b.dataset.id === sim.attack)); });
+    var t = sim.target, a = sim.attack, el = $("#console");
+    var inputs = "", btn = "Ejecutar ataque";
+    if (a === "sqli") {
+      var defU = t === "sin" ? "admin" : "admin", defP = "' OR '1'='1";
+      inputs = '<div class="fields"><label>Usuario<input id="fU" value="' + esc(defU) + '" autocomplete="off" spellcheck="false"></label>' +
+        '<label>Contraseña<input id="fP" value="' + esc(defP) + '" autocomplete="off" spellcheck="false"></label>' +
+        (t === "con" ? '<label>Código MFA<input id="fO" value="123456" inputmode="numeric" maxlength="6" autocomplete="off"></label>' : "") + "</div>" +
+        '<div class="row"><button class="btn-ghost" id="payOk" type="button">Cargar credenciales legítimas</button><button class="btn-ghost" id="payAtk" type="button">Cargar payload</button></div>' +
+        (t === "con" ? '<div class="otp">Autenticador simulado · usuario <b>user</b> · contraseña <b>' + esc(SEC_PASS) + '</b> · código <b id="otpNow">' + fakeOtp() + "</b></div>" : '<div class="otp">Credenciales legítimas de esta app: <b>admin</b> / <b>password</b></div>');
+    } else if (a === "xss") {
+      inputs = '<div class="fields"><label style="grid-column:1/-1">Texto de la nueva tarea<input id="fX" value="&lt;img src=x onerror=alert(1)&gt;" autocomplete="off" spellcheck="false"></label></div>';
+      btn = "Agregar tarea";
+    }
+    el.innerHTML = '<div><h3>' + esc(attacks.filter(function (x) { return x.id === a; })[0].name) + ' contra la versión ' + (t === "sin" ? "sin" : "con") + " DevSecOps</h3></div>" + inputs +
+      '<div class="row"><button class="btn" id="goBtn" type="button">' + btn + '</button><button class="btn-ghost" id="resetBtn" type="button">Reiniciar datos</button></div>' +
+      '<div class="out" id="simOut"></div>';
+    if (a === "sqli") {
+      $("#payOk").addEventListener("click", function () {
+        if (t === "sin") { $("#fU").value = "admin"; $("#fP").value = "password"; }
+        else { $("#fU").value = "user"; $("#fP").value = SEC_PASS; $("#fO").value = fakeOtp(); $("#otpNow").textContent = fakeOtp(); }
+      });
+      $("#payAtk").addEventListener("click", function () { $("#fU").value = "admin"; $("#fP").value = "' OR '1'='1"; if ($("#fO")) $("#fO").value = "123456"; });
+    }
+    $("#goBtn").addEventListener("click", function () { runAttack(); });
+    $("#resetBtn").addEventListener("click", function () { sim.state[t] = freshState(); renderConsole(); });
+    var prev = sim.last[t + a];
+    $("#simOut").innerHTML = prev || "<p class=\"score\">Pulsa el botón para lanzar la petición.</p>";
+  }
+
+  function finish(parts) { sim.last[sim.target + sim.attack] = parts; $("#simOut").innerHTML = parts; }
+
+  function runAttack() {
+    var t = sim.target, a = sim.attack, st = sim.state[t];
+    var out = "";
+    if (a === "sqli") out = attackSqli(t, st);
+    else if (a === "csrf") out = attackCsrf(t, st);
+    else if (a === "idor") out = attackIdor(t, st);
+    else if (a === "xss") out = attackXss(t, st);
+    else if (a === "brute") out = attackBrute(t, st);
+    else out = attackDebug(t);
+    finish(out);
+  }
+
+  function attackSqli(t, st) {
+    var u = $("#fU").value, p = $("#fP").value;
+    var req = "POST /login\nusername=" + u + "\npassword=" + p;
+    if (t === "sin") {
+      var legit = (u === "admin" || u === "user") && p === "password";
+      var hasInj = p.indexOf("' OR '") !== -1;
+      var query, success = false, who = null, tautology = false;
+      if (hasInj) {
+        query = "SELECT * FROM users WHERE username = '" + esc(u) + "' AND password = '<mark>" + esc(p) + "</mark>'";
+        var m = /^(.*)' OR '(.*)'='(.*)$/i.exec(p);
+        tautology = !!m && m[2] === m[3];
+        success = tautology; who = "admin";
+      } else {
+        query = "SELECT * FROM users WHERE username = ? AND password = ?\n-- parámetros: (" + esc(JSON.stringify(u)) + ", sha256(…))";
+        success = legit; who = u;
+      }
+      var verdict = success && hasInj ? stampHtml("fail", "Ataque exitoso") : success ? stampHtml("neutral", "Acceso legítimo") : stampHtml("pass", "Sin acceso");
+      var why = success && hasInj
+        ? "La condición <code>OR '1'='1'</code> es siempre verdadera: la consulta devuelve todas las filas y la app toma la primera, el administrador. La app solo concatena cuando detecta el patrón, pero la rama vulnerable existe y se alcanza."
+        : success ? "Usuario y contraseña correctos, con consulta parametrizada." : hasInj ? "El payload se concatenó, pero la condición no es una tautología y no devolvió filas." : "Credenciales inválidas.";
+      return code("Petición", esc(req)) + code("Consulta que ejecuta el servidor", query) +
+        code("Respuesta", success ? "302 Found → /dashboard\nSet-Cookie: session=…  (user_id=" + (who === "admin" ? 1 : 2) + ", role=" + (who === "admin" ? "admin" : "user") + ")" : "200 OK\nInvalid credentials!") +
+        code("Log", "Consulta SQL generada: " + query.replace(/<\/?mark>/g, "") + "\n<span class=\"c\"># ningún evento de seguridad registrado</span>") +
+        '<div class="verdict">' + verdict + "<p>" + why + "</p></div>";
+    }
+    var o = $("#fO") ? $("#fO").value : "";
+    var inputOk = /^[A-Za-z0-9_]{3,32}$/.test(u) && /^\d{6}$/.test(o);
+    if (!inputOk) {
+      return code("Petición", esc(req + "\notp=" + o)) +
+        code("Servidor", "USERNAME_RE = ^[A-Za-z0-9_]{3,32}$\nOTP_RE      = ^\\d{6}$\n<span class=\"c\"># no coincide → se rechaza antes de tocar la base de datos</span>") +
+        code("Respuesta", "400 Bad Request\nDatos invalidos") + code("Log de seguridad", esc(evt("login_invalid_input", {}))) +
+        '<div class="verdict">' + stampHtml("pass", "Bloqueado") + "<p>La validación por lista blanca descarta comillas, espacios y guiones. El payload nunca llega a la consulta.</p></div>";
+    }
+    var user = USERS[u];
+    var pwOk = !!user && p === SEC_PASS;
+    var otpOk = o === fakeOtp() || o === fakeOtpPrev();
+    var ok = pwOk && otpOk;
+    var q = "SELECT * FROM users WHERE username = ?\n-- parámetros: (" + esc(JSON.stringify(u)) + ")\n-- la contraseña se compara con check_password_hash(), no en SQL";
+    if (ok) {
+      return code("Petición", esc(req + "\notp=" + o)) + code("Consulta que ejecuta el servidor", q) +
+        code("Respuesta", "302 Found → /dashboard\nSet-Cookie: session=…; HttpOnly; SameSite=Lax") + code("Log de seguridad", esc(evt("login_success", { username: u }))) +
+        '<div class="verdict">' + stampHtml("neutral", "Acceso legítimo") + "<p>Contraseña y segundo factor correctos. La sesión se regenera con <code>session.clear()</code>.</p></div>";
+    }
+    return code("Petición", esc(req + "\notp=" + o)) + code("Consulta que ejecuta el servidor", q) +
+      code("Respuesta", "401 Unauthorized\nCredenciales invalidas") + code("Log de seguridad", esc(evt("login_failure", { username: u }))) +
+      '<div class="verdict">' + stampHtml("pass", "Bloqueado") + "<p>La consulta es parametrizada, así que el payload es solo texto. Aun con la contraseña correcta haría falta el código MFA vigente. El mensaje es idéntico si falla el usuario, la contraseña o el código.</p></div>";
+  }
+
+  function attackCsrf(t, st) {
+    var task = st.tasks[0];
+    if (t === "sin") {
+      task.gone = true;
+      return code("Página del atacante (la víctima ya tiene sesión)", esc('<img src="http://localhost:5001/delete_task/1" width="0" height="0">')) +
+        code("Petición que envía el navegador", "GET /delete_task/1\nCookie: session=…  <span class=\"c\"># el navegador la adjunta solo</span>") +
+        code("Servidor ejecuta", "DELETE FROM tasks WHERE id = 1") + code("Respuesta", "302 Found → /dashboard") + tasksHtml(st) +
+        '<div class="verdict">' + stampHtml("fail", "Ataque exitoso") + "<p>Una acción que cambia datos responde a GET y no pide ningún token. Cualquier página que la víctima abra puede lanzarla con su sesión.</p></div>";
+    }
+    return code("Página del atacante", esc('<img src="http://localhost:5002/delete_task/1">')) +
+      code("Intento 1 · GET /delete_task/1", "405 Method Not Allowed\n<span class=\"c\"># la ruta solo acepta POST</span>") +
+      code("Intento 2 · formulario falso desde otro sitio", "POST /delete_task/1\n(sin campo _csrf)\n\n400 Bad Request\nCSRF token invalido") +
+      code("Log de seguridad", esc(evt("csrf_rejected", { endpoint: "delete_task" }))) + tasksHtml(st) +
+      '<div class="verdict">' + stampHtml("pass", "Bloqueado") + "<p>El token CSRF vive en la sesión y se compara con <code>secrets.compare_digest</code>. El sitio del atacante no puede leerlo. Además la cookie es <code>SameSite=Lax</code>.</p></div>";
+  }
+
+  function attackIdor(t, st) {
+    var task = st.tasks[2];
+    if (t === "sin") {
+      task.gone = true;
+      return code("Petición (sesión de «user», id 2)", "GET /delete_task/3") + code("Servidor ejecuta", "DELETE FROM tasks WHERE id = 3\n<span class=\"c\"># no comprueba de quién es la tarea</span>") +
+        code("Respuesta", "302 Found → /dashboard") + tasksHtml(st) +
+        '<div class="verdict">' + stampHtml("fail", "Ataque exitoso") + "<p>El usuario borró una tarea del administrador cambiando el número de la URL.</p></div>";
+    }
+    return code("Petición (sesión de «user», id 2, con token CSRF válido)", "POST /delete_task/3\n_csrf=…") +
+      code("Servidor ejecuta", "DELETE FROM tasks WHERE id = 3 AND user_id = 2\n<span class=\"c\"># 0 filas afectadas</span>") + code("Respuesta", "302 Found → /dashboard") + tasksHtml(st) +
+      '<div class="verdict">' + stampHtml("pass", "Bloqueado") + "<p>La condición <code>AND user_id = ?</code> liga cada borrado a la sesión. La tarea 3 sigue ahí.</p></div>";
+  }
+
+  function attackXss(t, st) {
+    var txt = $("#fX").value;
+    var rendered = esc(txt);
+    var head = t === "con" ? "\nContent-Security-Policy: default-src 'self'; frame-ancestors 'none'; form-action 'self'; base-uri 'self'" : "";
+    return code("Petición", esc("POST /add_task\ntask=" + txt)) +
+      "<div><h4>Cómo lo dibuja el navegador</h4><div class=\"render\">" + rendered + "</div></div>" +
+      code("HTML generado por Jinja2", "&lt;li&gt;" + esc(rendered) + "&lt;/li&gt;" + esc(head)) +
+      '<div class="verdict">' + stampHtml("warn", "Neutralizado por autoescape") + "<p>" + (t === "sin"
+        ? "En esta app Jinja2 escapa la salida, así que el script no se ejecuta. No todo hallazgo de una auditoría es explotable, y las pruebas sirven para confirmarlo. Aquí falta la defensa en profundidad: sin CSP, un solo <code>|safe</code> futuro bastaría para abrirlo."
+        : "Jinja2 escapa la salida y la CSP bloquea scripts inline como segunda barrera. La prueba <code>test_task_output_is_escaped</code> evita que alguien lo rompa sin que el build falle.") + "</p></div>";
+  }
+
+  function attackBrute(t, st) {
+    var rows = [];
+    var fails = 0, locked = false, blocked = 0;
+    for (var i = 1; i <= 7; i++) {
+      if (t === "sin") { rows.push("intento " + i + "  →  200 OK   Invalid credentials!"); fails++; }
+      else if (locked) { rows.push("intento " + i + "  →  429       Cuenta bloqueada temporalmente"); blocked++; }
+      else { fails++; rows.push("intento " + i + "  →  401       Credenciales invalidas" + (fails >= 5 ? "   <mark>cuenta bloqueada 300 s</mark>" : "")); if (fails >= 5) locked = true; }
+    }
+    var log = "";
+    if (t === "con") {
+      var lines = [];
+      for (var k = 1; k <= 5; k++) { if (k === 5) lines.push(evt("account_locked", { username: "user", attempts: 5 })); lines.push(evt("login_failure", { username: "user" })); }
+      for (var j = 0; j < blocked; j++) lines.push(evt("login_blocked_locked_account", { username: "user" }));
+      log = code("Log de seguridad", esc(lines.join("\n")));
+    } else log = code("Log", "<span class=\"c\"># sin límite de intentos y sin eventos de seguridad</span>");
+    return code("Atacante prueba contraseñas contra «user»", rows.join("\n")) + log +
+      '<div class="verdict">' + (t === "sin" ? stampHtml("fail", "Sin defensa") : stampHtml("pass", "Bloqueado")) + "<p>" + (t === "sin"
+        ? "Puede seguir indefinidamente, y el hash SHA-256 sin sal facilita descifrar la base si se filtra."
+        : "A los 5 fallos la cuenta se bloquea y el evento <code>account_locked</code> queda listo para una alerta. Aunque acertara la contraseña, aún le faltaría el código MFA.") + "</p></div>";
+  }
+
+  function attackDebug(t) {
+    if (t === "sin") {
+      return code("Petición", "GET /console") + code("Respuesta", "200 OK\n<span class=\"c\"># consola interactiva de Werkzeug: ejecuta código Python en el servidor</span>\nConsole locked. Enter the PIN…") +
+        '<div class="verdict">' + stampHtml("fail", "Expuesto") + "<p>La imagen arranca con <code>FLASK_DEBUG=1</code>. Bandit lo marca como B201 (severidad alta) y en el pipeline seguro habría roto el build.</p></div>";
+    }
+    return code("Petición", "GET /console") + code("Respuesta", "404 Not Found\n<span class=\"c\"># gunicorn, sin modo debug</span>") +
+      '<div class="verdict">' + stampHtml("pass", "Bloqueado") + "<p>La app corre con gunicorn como usuario sin privilegios, sistema de archivos de solo lectura y sin capabilities.</p></div>";
+  }
+  renderConsole();
+  setInterval(function () { var n = $("#otpNow"); if (n) n.textContent = fakeOtp(); }, 1000);
+
+  /* ---------- 4 · simulador de pipeline ---------- */
+  var conStages = [
+    { n: "Trazabilidad", tool: "git", art: "build-info.json" },
+    { n: "Secretos", tool: "Gitleaks", art: "gitleaks.json" },
+    { n: "SAST", tool: "Bandit", art: "bandit.json" },
+    { n: "SCA", tool: "pip-audit", art: "pip-audit.json" },
+    { n: "Pruebas", tool: "pytest", art: "junit.xml · coverage.xml" },
+    { n: "Build imagen", tool: "docker", art: "etiquetas OCI" },
+    { n: "Imagen + SBOM", tool: "Trivy", art: "trivy.json · sbom.cdx.json" },
+    { n: "Deploy staging", tool: "docker", art: "contenedor endurecido" },
+    { n: "Smoke test", tool: "healthcheck", art: "estado healthy" },
+    { n: "DAST", tool: "OWASP ZAP", art: "zap-report.html" }
+  ];
+  var sinStages = [{ n: "Build", tool: "docker" }, { n: "Test", tool: "(vacío)" }, { n: "Deploy", tool: "docker" }];
+  var scenarios = [
+    { id: "clean", name: "Ningún cambio (código limpio)", fail: -1 },
+    { id: "sqli", name: "Concatenar SQL con la entrada del usuario", fail: 2,
+      log: ">> Issue: [B608:hardcoded_sql_expressions] Possible SQL injection vector through string-based query construction.\n   Severity: Medium   Confidence: Low\n   Location: ./app.py", impact: "inyección SQL explotable en el login" },
+    { id: "debug", name: "Activar debug=True", fail: 2,
+      log: ">> Issue: [B201:flask_debug_true] A Flask app appears to be run with debug=True, which exposes the Werkzeug debugger and allows the execution of arbitrary code.\n   Severity: High   Confidence: Medium", impact: "consola Werkzeug con ejecución remota de código" },
+    { id: "secret", name: "Subir una clave de API al repositorio", fail: 1,
+      log: "Finding:     API_KEY=REDACTED\nRuleID:      generic-api-key\nFile:        app.py\nWRN leaks found: 1", impact: "clave expuesta en el historial de Git" },
+    { id: "deps", name: "Fijar Flask 2.0.1 y Jinja2 3.0.1", fail: 3,
+      log: "Found known vulnerabilities in 3 packages\nName    Version  ID               Fix Versions\njinja2  3.0.1    PYSEC-2026-1474  3.1.4\njinja2  3.0.1    PYSEC-2026-1475  3.1.5\n…", impact: "dependencias con CVE conocidos en producción" },
+    { id: "csrf", name: "Quitar la verificación CSRF", fail: 4,
+      log: "FAILED tests/test_security.py::test_add_task_without_csrf_token_rejected\nFAILED tests/test_security.py::test_add_task_with_wrong_csrf_token_rejected\n(salida de ejemplo)", impact: "formularios sin protección CSRF" },
+    { id: "image", name: "Cambiar la base a python:3.9 completa", fail: 6,
+      log: "taskmanager-secure:123 (debian)\nTotal: 2008 (HIGH: 1790, CRITICAL: 218)", impact: "más de 2000 vulnerabilidades en el sistema operativo de la imagen" }
+  ];
+  var pipe = { which: "con", scen: "sqli", running: false };
+
+  function radios(host, name, items, current, onChange) {
+    items.forEach(function (it) {
+      var l = document.createElement("label");
+      var id = name + "-" + it.id;
+      l.innerHTML = '<input type="radio" name="' + name + '" id="' + id + '" value="' + it.id + '"' + (it.id === current ? " checked" : "") + "><span>" + esc(it.name) + "</span>";
+      $("input", l).addEventListener("change", function () { onChange(it.id); });
+      host.appendChild(l);
+    });
+  }
+  radios($("#pipeSel"), "pipe", [{ id: "sin", name: "Sin DevSecOps · build, test (vacío), deploy" }, { id: "con", name: "Con DevSecOps · diez etapas con compuertas" }], pipe.which, function (v) { pipe.which = v; drawLane(); $("#result").innerHTML = ""; });
+  radios($("#scenSel"), "scen", scenarios, pipe.scen, function (v) { pipe.scen = v; $("#result").innerHTML = ""; drawLane(); });
+
+  function drawLane(states) {
+    var list = pipe.which === "con" ? conStages : sinStages;
+    $("#lane").innerHTML = list.map(function (s, i) {
+      var cls = states && states[i] ? " " + states[i] : "";
+      return '<div class="stage' + cls + '"><span class="st"></span><b>' + esc(s.n) + "</b><small>" + esc(s.tool) + "</small></div>";
+    }).join("");
+  }
+  drawLane();
+
+  $("#runBtn").addEventListener("click", async function () {
+    if (pipe.running) return;
+    pipe.running = true; this.disabled = true; $("#result").innerHTML = "";
+    var scen = scenarios.filter(function (s) { return s.id === pipe.scen; })[0];
+    var list = pipe.which === "con" ? conStages : sinStages;
+    var states = list.map(function () { return ""; });
+    var failAt = pipe.which === "con" ? scen.fail : -1;
+    var reached = 0;
+    $("#runNote").textContent = "Ejecutando…";
+    for (var i = 0; i < list.length; i++) {
+      states[i] = "run"; drawLane(states); await wait(480);
+      if (i === failAt) { states[i] = "bad"; reached = i; for (var k = i + 1; k < list.length; k++) states[k] = "skip"; drawLane(states); break; }
+      var last = pipe.which === "con" && i === list.length - 1;
+      states[i] = last ? "unstable" : "ok"; reached = i; drawLane(states);
+    }
+    showResult(scen, failAt, reached);
+    $("#runNote").textContent = "";
+    pipe.running = false; $("#runBtn").disabled = false;
+  });
+
+  function showResult(scen, failAt, reached) {
+    var out = "";
+    if (pipe.which === "sin") {
+      var clean = scen.id === "clean";
+      out = '<div class="verdict">' + stampHtml(clean ? "warn" : "fail", clean ? "Desplegado sin verificar" : "Desplegado a producción") +
+        "<p>" + (clean ? "Verde en un minuto, pero sin pruebas, sin escaneo y sin evidencia: nadie sabe si el código es seguro." : "El pipeline terminó en verde. En producción quedó: " + esc(scen.impact) + ". Nadie lo supo hasta que alguien lo explotó o lo encontró una auditoría.") + "</p></div>" +
+        '<div><h4 class="score">Evidencia archivada</h4><div class="arts"><span class="chip">ninguna</span></div></div>';
+    } else if (failAt >= 0) {
+      var arts = conStages.slice(0, failAt + 1).map(function (s) { return s.art; });
+      out = '<div class="verdict">' + stampHtml("fail", "Rechazado en " + conStages[failAt].n) +
+        "<p>El build se detuvo en <b>" + esc(conStages[failAt].tool) + "</b>. No se construyó ni desplegó nada con este cambio (" + esc(scen.impact) + ").</p></div>" +
+        code("Salida de " + conStages[failAt].tool, esc(scen.log)) +
+        '<div><h4 class="score">Evidencia archivada hasta aquí</h4><div class="arts">' + arts.map(function (a) { return '<span class="chip">' + esc(a) + "</span>"; }).join("") + "</div></div>";
+    } else {
+      out = '<div class="verdict">' + stampHtml("pass", "Aprobado") +
+        "<p>Las nueve compuertas pasaron. DAST queda en <b>UNSTABLE</b> por decisión de política: ZAP baseline es pasivo y sin autenticar, informa avisos (2 informativos en la última ejecución) pero no bloquea el despliegue.</p></div>" +
+        '<div><h4 class="score">Evidencia archivada</h4><div class="arts">' + conStages.map(function (s) { return '<span class="chip">' + esc(s.art) + "</span>"; }).join("") + "</div></div>";
+    }
+    $("#result").innerHTML = out;
+  }
+
+  /* ---------- 6 · evidencia ---------- */
+  var evidence = [
+    { f: "build-info.json", s: "Trazabilidad", q: "¿Qué commit y qué build produjeron esta imagen?" },
+    { f: "gitleaks.json", s: "Secretos", q: "¿Se subió alguna credencial al repositorio?" },
+    { f: "bandit.json", s: "SAST", q: "¿Hay patrones inseguros en el código propio?" },
+    { f: "pip-audit.json", s: "SCA", q: "¿Alguna dependencia tiene un CVE conocido?" },
+    { f: "junit.xml · coverage.xml", s: "Pruebas", q: "¿Qué ataques se probaron y con qué cobertura?" },
+    { f: "sbom.cdx.json", s: "Imagen", q: "¿Qué componentes lleva exactamente esta versión?" },
+    { f: "trivy.json", s: "Imagen", q: "¿Hay vulnerabilidades graves con parche en la imagen?" },
+    { f: "zap-report.html · .json", s: "DAST", q: "¿Cómo se ve la app en ejecución desde fuera?" },
+    { f: "docker logs (JSON)", s: "Monitorización", q: "¿Hubo fuerza bruta, CSRF o accesos denegados?" }
+  ];
+  var evTabs = $("#evTabs");
+  var evStages = ["Todas"].concat(evidence.map(function (e) { return e.s; }).filter(function (v, i, a) { return a.indexOf(v) === i; }));
+  function showEvidence(stage) {
+    $$(".tab", evTabs).forEach(function (b) { b.setAttribute("aria-selected", String(b.dataset.s === stage)); });
+    $("#evTable tbody").innerHTML = evidence.filter(function (e) { return stage === "Todas" || e.s === stage; }).map(function (e) {
+      return '<tr><td class="num" style="padding-left:1rem">' + esc(e.f) + "</td><td>" + esc(e.s) + "</td><td>" + esc(e.q) + "</td></tr>";
+    }).join("");
+  }
+  evStages.forEach(function (s) {
+    var b = document.createElement("button");
+    b.className = "tab"; b.type = "button"; b.setAttribute("role", "tab"); b.dataset.s = s; b.textContent = s;
+    b.addEventListener("click", function () { showEvidence(s); });
+    evTabs.appendChild(b);
+  });
+  showEvidence("Todas");
+
+  /* ---------- 7 · quiz ---------- */
+  var quiz = [
+    { q: "El pipeline seguro falla porque requirements.txt fija Flask 2.0.1. ¿Qué etapa lo detecta?", o: ["Gitleaks", "Bandit", "pip-audit", "OWASP ZAP"], a: 2, e: "pip-audit compara cada dependencia con bases de vulnerabilidades. Bandit mira el código propio, Gitleaks busca secretos y ZAP prueba la app en ejecución." },
+    { q: "El login seguro responde 400 a «admin' --» sin consultar la base de datos. ¿Qué control lo hace?", o: ["Hash con sal", "Validación por lista blanca", "Token CSRF", "Cabecera CSP"], a: 1, e: "USERNAME_RE solo admite letras, números y guion bajo. Lo demás se descarta en el borde del sistema; la consulta parametrizada es una segunda barrera." },
+    { q: "¿Por qué ZAP deja la etapa en UNSTABLE en lugar de romper el build?", o: ["Porque ZAP es poco fiable", "Es una decisión de política: el baseline es pasivo y sin autenticar, informa avisos", "Porque corre después del deploy y ya no se puede detener nada", "Porque Jenkins no soporta ZAP"], a: 1, e: "Cada compuerta decide si bloquea o informa. Aquí los avisos de ZAP son informativos; secretos, SAST, SCA, pruebas e imagen sí bloquean. Cambiarlo es una decisión del equipo, no un límite técnico." },
+    { q: "Un auditor pregunta qué código corre en producción. ¿Qué lo responde?", o: ["El nombre del contenedor", "build-info.json y las etiquetas OCI de la imagen", "El README", "El último mensaje de Slack"], a: 1, e: "build-info.json registra build, commit, rama e imagen, y la imagen lleva el commit en org.opencontainers.image.revision. Es verificable sin depender de nadie." },
+    { q: "El enlace /delete_task/1 borra una tarea con solo abrirlo. ¿Cuál es el problema de fondo?", o: ["Falta HTTPS", "Una acción que modifica datos responde a GET y no exige token CSRF", "La tarea tiene un id corto", "Jinja2 no escapa la salida"], a: 1, e: "GET debe ser seguro. Con POST, token CSRF y cookie SameSite, un sitio ajeno no puede forjar la petición." },
+    { q: "La consulta segura es DELETE … WHERE id = ? AND user_id = ?. ¿Qué evita el segundo filtro?", o: ["Inyección SQL", "XSS", "IDOR: borrar recursos ajenos cambiando el id", "Fuerza bruta"], a: 2, e: "El id viene del cliente y no se puede confiar en él. Ligar la operación al usuario de la sesión impide tocar tareas de otros." }
+  ];
+  var qi = 0, score = 0, answered = false;
+  function drawQuiz() {
+    var box = $("#quiz");
+    if (qi >= quiz.length) {
+      var good = score >= 5;
+      box.innerHTML = "<h3>Resultado</h3>" + stampHtml(good ? "pass" : "warn", score + " de " + quiz.length) +
+        '<p class="explain">' + (good ? "Dominas los controles que cubre el pipeline. Siguiente paso: reintroduce una vulnerabilidad en Jenkins y confirma que el build se detiene." : "Repasa las compuertas 3 y 4 y vuelve a intentarlo.") + '</p><div class="qnav"><button class="btn" id="qAgain" type="button">Repetir</button></div>';
+      $("#qAgain").addEventListener("click", function () { qi = 0; score = 0; drawQuiz(); });
+      return;
+    }
+    var q = quiz[qi]; answered = false;
+    box.innerHTML = '<div class="score">Pregunta ' + (qi + 1) + " de " + quiz.length + "</div><h3>" + esc(q.q) + '</h3><div class="opts">' +
+      q.o.map(function (o, i) { return '<button class="opt" type="button" data-i="' + i + '">' + esc(o) + "</button>"; }).join("") +
+      '</div><div id="qExp" aria-live="polite"></div><div class="qnav"><span class="score">Aciertos: ' + score + '</span><button class="btn" id="qNext" type="button" hidden>' + (qi === quiz.length - 1 ? "Ver resultado" : "Siguiente") + "</button></div>";
+    $$(".opt", box).forEach(function (b) {
+      b.addEventListener("click", function () {
+        if (answered) return; answered = true;
+        var i = Number(b.dataset.i);
+        if (i === q.a) score++;
+        $$(".opt", box).forEach(function (x) { x.disabled = true; if (Number(x.dataset.i) === q.a) x.classList.add("right"); });
+        if (i !== q.a) b.classList.add("wrong");
+        $("#qExp").innerHTML = '<p class="explain">' + esc(q.e) + "</p>";
+        $("#qNext").hidden = false; $("#qNext").focus();
+      });
+    });
+    $("#qNext").addEventListener("click", function () { qi++; drawQuiz(); });
+  }
+  drawQuiz();
+
+
+  /* ---------- ayuda: problemas frecuentes ---------- */
+  (function () {
+    var rows = [
+      ["<code>docker</code> no se reconoce o <code>docker version</code> no muestra Server", "Docker Desktop no está encendido o aún arranca. Ábrelo, espera a «Engine running» y repite (paso 1)."],
+      ["<code>docker: command not found</code> dentro de un build de Jenkins", "Estás usando otro Jenkins. Repite el paso 3 y comprueba con <code>docker exec jenkins docker --version</code>."],
+      ["<code>container name \"/jenkins\" is already in use</code>", "Hay otro contenedor llamado <code>jenkins</code>. Ejecuta <code>docker rm -f jenkins</code> y repite el paso 3."],
+      ["<code>port is already allocated</code> (8080, 5001 o 5002)", "Otro programa usa ese puerto. Ejecuta <code>docker ps</code> y detén el contenedor que lo ocupa."],
+      ["<code>git push</code> dice <code>rejected</code>", "Tu repositorio no estaba vacío. Mira el aviso del paso 2 (pull con <code>--allow-unrelated-histories</code> o <code>--force</code>)."],
+      ["Git pide usuario y contraseña, o falla la autenticación", "GitHub ya no acepta contraseñas en la terminal. Inicia sesión en la ventana del navegador que se abre, o usa un token personal."],
+      ["El job de Jenkins no clona el repositorio", "Revisa la URL y la rama <code>*/main</code>. Si el repositorio es privado, agrega las credenciales (paso 5)."],
+      ["<code>Could not find credentials entry with ID 'taskmanager-…'</code>", "Los tres IDs deben ser exactos y de tipo <b>Secret text</b> (paso 4)."],
+      ["<code>no such container: jenkins</code> en Secretos o SAST", "El contenedor de Jenkins debe llamarse exactamente <code>jenkins</code>."],
+      ["Cambié las contraseñas de las credenciales y la app segura sigue con las anteriores", "La base de datos vive en un volumen. Ejecuta <code>docker rm -f taskmanager-secure</code>, luego <code>docker volume rm taskmanager-data</code> y vuelve a ejecutar el job."],
+      ["El código MFA siempre es inválido", "Revisa que la hora del equipo sea correcta y que uses el secreto del usuario correcto: <code>admin</code> y <code>user</code> tienen secretos distintos."],
+      ["La cuenta quedó bloqueada (429)", "Es el bloqueo tras 5 fallos. Espera 5 minutos o reinicia los datos (aviso del paso 9)."],
+      ["La etapa ZAP tarda mucho", "La primera vez descarga más de 1 GB. Espera; las siguientes ejecuciones son más rápidas."],
+      ["Trivy, pip-audit o Gitleaks fallan sin que cambies nada", "Apareció una vulnerabilidad nueva. Es la compuerta funcionando: actualiza la versión afectada y vuelve a ejecutar."]
+    ];
+    var body = $("#probBody"), input = $("#probFilter");
+    function draw() {
+      var q = input.value.trim().toLowerCase();
+      body.innerHTML = rows.filter(function (r) { return !q || (r[0] + " " + r[1]).replace(/<[^>]+>/g, "").toLowerCase().indexOf(q) !== -1; })
+        .map(function (r) { return '<tr><td style="padding-left:1rem">' + r[0] + "</td><td>" + r[1] + "</td></tr>"; }).join("") || '<tr><td colspan="2" style="padding-left:1rem">Sin coincidencias.</td></tr>';
+    }
+    input.addEventListener("input", draw); draw();
+  })();
+})();
+</script>
+</body>
+</html>

@@ -1,0 +1,13 @@
+# Actualizaciones automáticas de dependencias y de la imagen base de la app segura.
+# (La app "sin DevSecOps" queda fuera a propósito: es el ejemplo de lo que NO se hace.)
+version: 2
+updates:
+  - package-ecosystem: pip
+    directory: /apps/taskmanager-con-devsecops
+    schedule:
+      interval: weekly
+    open-pull-requests-limit: 5
+  - package-ecosystem: docker
+    directory: /apps/taskmanager-con-devsecops
+    schedule:
+      interval: weekly

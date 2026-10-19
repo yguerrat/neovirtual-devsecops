@@ -1,0 +1,197 @@
+// Pipeline CON DevSecOps: la seguridad es parte de cada etapa y rompe el build si falla.
+//
+// Las herramientas se ejecutan en contenedores efímeros con versión fija, usando
+// --volumes-from sobre el contenedor de Jenkins para ver el workspace. Así Jenkins
+// no necesita Python ni ninguna herramienta instalada y la ejecución es reproducible.
+//
+// Credenciales requeridas en Jenkins (Manage Jenkins > Credentials, tipo "Secret text"):
+//   taskmanager-secret-key, taskmanager-admin-pw, taskmanager-user-pw
+
+def pyTool(String cmd) {
+    sh "docker run --rm -e PIP_ROOT_USER_ACTION=ignore -e PIP_DISABLE_PIP_VERSION_CHECK=1 " +
+       "--volumes-from ${env.JENKINS_CONTAINER} -w ${env.WORKSPACE}/${env.APP_DIR} " +
+       "${env.PY_IMAGE} sh -c \"${cmd}\""
+}
+
+pipeline {
+    agent any
+
+    options {
+        timestamps()
+        disableConcurrentBuilds()
+        buildDiscarder(logRotator(numToKeepStr: '20', artifactNumToKeepStr: '20'))
+        timeout(time: 30, unit: 'MINUTES')
+    }
+
+    environment {
+        APP_DIR           = 'apps/taskmanager-con-devsecops'
+        IMAGE_NAME        = 'taskmanager-secure'
+        CONTAINER_NAME    = 'taskmanager-secure'
+        APP_PORT          = '5002'
+        NETWORK           = 'neovirtual'
+        JENKINS_CONTAINER = 'jenkins'
+        PY_IMAGE          = 'python:3.12-slim'
+        GITLEAKS_IMAGE    = 'zricethezav/gitleaks:v8.21.2'
+        TRIVY_IMAGE       = 'aquasec/trivy:0.58.1'
+        ZAP_IMAGE         = 'ghcr.io/zaproxy/zaproxy:stable'
+    }
+
+    stages {
+        stage('Trazabilidad') {
+            steps {
+                dir(env.APP_DIR) {
+                    sh '''
+                        mkdir -p reports
+                        COMMIT=$(git rev-parse HEAD)
+                        cat > reports/build-info.json <<EOF
+{
+  "build_number": "${BUILD_NUMBER}",
+  "build_url": "${BUILD_URL}",
+  "commit": "${COMMIT}",
+  "branch": "${GIT_BRANCH:-unknown}",
+  "image": "${IMAGE_NAME}:${BUILD_NUMBER}",
+  "timestamp": "$(date -u +%Y-%m-%dT%H:%M:%SZ)"
+}
+EOF
+                        cat reports/build-info.json
+                    '''
+                }
+            }
+        }
+
+        stage('Secretos (Gitleaks)') {
+            steps {
+                sh '''
+                    docker run --rm --volumes-from ${JENKINS_CONTAINER} -w ${WORKSPACE} ${GITLEAKS_IMAGE} \
+                        detect --no-git --source ${APP_DIR} --redact \
+                        --report-format json --report-path ${APP_DIR}/reports/gitleaks.json --exit-code 1
+                '''
+            }
+        }
+
+        stage('SAST (Bandit)') {
+            steps {
+                // -ll: falla con severidad media o superior
+                pyTool 'pip install -q bandit==1.8.0 && bandit -r app.py create_db.py -ll -f json -o reports/bandit.json'
+            }
+        }
+
+        stage('SCA (pip-audit)') {
+            steps {
+                // Falla si alguna dependencia tiene una vulnerabilidad conocida
+                pyTool 'pip install -q pip-audit==2.7.3 && pip-audit -r requirements.txt --progress-spinner off -f json -o reports/pip-audit.json'
+            }
+        }
+
+        stage('Pruebas de seguridad') {
+            steps {
+                pyTool 'pip install -q -r requirements-dev.txt && pytest --cov=app --cov=create_db --cov-report=xml:reports/coverage.xml --cov-report=term --cov-fail-under=80 --junitxml=reports/junit.xml -p no:cacheprovider'
+            }
+        }
+
+        stage('Build imagen') {
+            steps {
+                dir(env.APP_DIR) {
+                    sh '''
+                        docker build \
+                            --label org.opencontainers.image.revision=$(git rev-parse HEAD) \
+                            --label org.opencontainers.image.created=$(date -u +%Y-%m-%dT%H:%M:%SZ) \
+                            --label ci.build-number=${BUILD_NUMBER} \
+                            -t ${IMAGE_NAME}:${BUILD_NUMBER} -t ${IMAGE_NAME}:latest .
+                    '''
+                }
+            }
+        }
+
+        stage('Escaneo de imagen + SBOM (Trivy)') {
+            steps {
+                sh '''
+                    TRIVY="docker run --rm -v /var/run/docker.sock:/var/run/docker.sock -v trivy-cache:/root/.cache/ ${TRIVY_IMAGE}"
+                    # SBOM (inventario de componentes) y reporte completo como evidencia
+                    $TRIVY image -q --format cyclonedx ${IMAGE_NAME}:${BUILD_NUMBER} > ${APP_DIR}/reports/sbom.cdx.json
+                    $TRIVY image -q --format json ${IMAGE_NAME}:${BUILD_NUMBER} > ${APP_DIR}/reports/trivy.json
+                    # Compuerta: falla con HIGH/CRITICAL que ya tengan parche
+                    $TRIVY image -q --severity HIGH,CRITICAL --ignore-unfixed --exit-code 1 ${IMAGE_NAME}:${BUILD_NUMBER}
+                '''
+            }
+        }
+
+        stage('Deploy (staging)') {
+            steps {
+                withCredentials([
+                    string(credentialsId: 'taskmanager-secret-key', variable: 'SECRET_KEY'),
+                    string(credentialsId: 'taskmanager-admin-pw',   variable: 'ADMIN_PW'),
+                    string(credentialsId: 'taskmanager-user-pw',    variable: 'USER_PW')
+                ]) {
+                    sh '''
+                        docker network create ${NETWORK} 2>/dev/null || true
+                        docker rm -f ${CONTAINER_NAME} 2>/dev/null || true
+                        docker run -d --name ${CONTAINER_NAME} --network ${NETWORK} \
+                            -p ${APP_PORT}:5000 \
+                            -e SECRET_KEY -e ADMIN_PW -e USER_PW \
+                            -v taskmanager-data:/data \
+                            --read-only --tmpfs /tmp \
+                            --cap-drop ALL --security-opt no-new-privileges \
+                            --restart unless-stopped \
+                            ${IMAGE_NAME}:${BUILD_NUMBER}
+                    '''
+                }
+            }
+        }
+
+        stage('Smoke test') {
+            steps {
+                sh '''
+                    for i in $(seq 1 20); do
+                        STATUS=$(docker inspect -f "{{.State.Health.Status}}" ${CONTAINER_NAME})
+                        echo "healthcheck: ${STATUS}"
+                        [ "${STATUS}" = "healthy" ] && exit 0
+                        sleep 3
+                    done
+                    docker logs --tail 50 ${CONTAINER_NAME}
+                    exit 1
+                '''
+            }
+        }
+
+        stage('DAST (OWASP ZAP baseline)') {
+            steps {
+                // Informa hallazgos pero no rompe el despliegue: marca la etapa como UNSTABLE.
+                catchError(buildResult: 'SUCCESS', stageResult: 'UNSTABLE') {
+                    // ZAP exige un volumen en /zap/wrk y corre como uid 1000
+                    sh '''
+                        docker rm -f zap-baseline 2>/dev/null || true
+                        docker volume rm -f zap-wrk 2>/dev/null || true
+                        docker run --rm -v zap-wrk:/zap/wrk alpine:3.20 chown 1000:1000 /zap/wrk
+                        docker run --name zap-baseline --network ${NETWORK} -v zap-wrk:/zap/wrk ${ZAP_IMAGE} \
+                            zap-baseline.py -t http://${CONTAINER_NAME}:5000 \
+                            -r zap-report.html -J zap-report.json -I
+                    '''
+                }
+            }
+            post {
+                always {
+                    sh '''
+                        docker cp zap-baseline:/zap/wrk/zap-report.html ${APP_DIR}/reports/ || true
+                        docker cp zap-baseline:/zap/wrk/zap-report.json ${APP_DIR}/reports/ || true
+                        docker rm -f zap-baseline || true
+                        docker volume rm -f zap-wrk || true
+                    '''
+                }
+            }
+        }
+    }
+
+    post {
+        always {
+            junit allowEmptyResults: true, testResults: "${env.APP_DIR}/reports/junit.xml"
+            archiveArtifacts artifacts: "${env.APP_DIR}/reports/**", allowEmptyArchive: true, fingerprint: true
+        }
+        success {
+            echo "Pipeline seguro OK. App en http://localhost:${env.APP_PORT} (evidencia archivada en el build)."
+        }
+        failure {
+            echo 'Una compuerta de seguridad falló: revisa los reportes archivados del build.'
+        }
+    }
+}

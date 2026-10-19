@@ -1,0 +1,29 @@
+# Levanta ambas apps para compararlas (sin Jenkins).
+services:
+  sin-devsecops:
+    build: ./apps/taskmanager-sin-devsecops
+    container_name: taskmanager-vulnerable
+    ports:
+      - "5001:5000"
+
+  con-devsecops:
+    build: ./apps/taskmanager-con-devsecops
+    container_name: taskmanager-secure
+    ports:
+      - "5002:5000"
+    environment:
+      SECRET_KEY: ${SECRET_KEY:?define SECRET_KEY en .env}
+      ADMIN_PW: ${ADMIN_PW:?define ADMIN_PW en .env}
+      USER_PW: ${USER_PW:?define USER_PW en .env}
+    volumes:
+      - taskmanager-data:/data
+    read_only: true
+    tmpfs:
+      - /tmp
+    cap_drop:
+      - ALL
+    security_opt:
+      - no-new-privileges:true
+
+volumes:
+  taskmanager-data:
